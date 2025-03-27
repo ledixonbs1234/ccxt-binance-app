@@ -1,6 +1,6 @@
 // File: app/api/active-simulations/route.ts
 import { NextResponse } from 'next/server';
-import { getActiveSimulationsForClient } from '../lib/trailingStopState'; // Import hàm lấy dữ liệu
+import { getActiveSimulationsForClient } from '../../../lib/trailingStopState'; // Import hàm lấy dữ liệu
 
 export async function GET(req: Request) {
     try {

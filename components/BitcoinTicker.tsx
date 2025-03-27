@@ -8,10 +8,9 @@ type BitcoinTickerProps = {
     onPriceChange: (price: number) => void;
 };
 
-// Định dạng giá (giữ nguyên)
 const formatPrice = (price: number | null): string => {
     if (price === null) return '---.--';
-    return price.toLocaleString('en-US', { // Sử dụng 'en-US' cho định dạng USD chuẩn
+    return price.toLocaleString('en-US', {
         style: 'currency',
         currency: 'USD',
         minimumFractionDigits: 2,
@@ -21,21 +20,18 @@ const formatPrice = (price: number | null): string => {
 
 export default function BitcoinTicker({ onPriceChange }: BitcoinTickerProps) {
     const [price, setPrice] = useState<number | null>(null);
-    // Phân biệt loading ban đầu và loading refresh
     const [isInitialLoading, setIsInitialLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false); // Chỉ cho refresh thủ công
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
 
+    // SỬA LẠI: Chỉ phụ thuộc vào onPriceChange (ổn định từ parent)
     const fetchTicker = useCallback(async (isManualRefresh = false) => {
-        // Chỉ set isRefreshing khi là refresh thủ công
         if (isManualRefresh) {
             setIsRefreshing(true);
         }
-        // Không set loading=true cho interval updates
-
-        // Luôn xóa lỗi cũ trước khi fetch
-        setError(null);
+        // Không set isInitialLoading = true ở đây nữa
+        setError(null); // Luôn xóa lỗi cũ
 
         try {
             const res = await fetch('/api/ticker');
@@ -47,47 +43,63 @@ export default function BitcoinTicker({ onPriceChange }: BitcoinTickerProps) {
             const newPrice = data.last;
 
             if (typeof newPrice === 'number') {
-                 // Chỉ cập nhật state và gọi callback nếu giá thực sự thay đổi
-                 // (Sử dụng closure để so sánh với giá trị state hiện tại)
+                 // Sử dụng functional update để đảm bảo state luôn mới nhất
                  setPrice(currentPrice => {
                      if (newPrice !== currentPrice) {
+                         console.log(`BitcoinTicker: Price changed ${currentPrice} -> ${newPrice}, calling onPriceChange`);
                          onPriceChange(newPrice); // Gọi callback khi giá thay đổi
-                         setLastUpdateTime(new Date()); // Cập nhật thời gian khi có giá mới
-                         return newPrice;
+                         setLastUpdateTime(new Date());
+                         return newPrice; // Cập nhật state
                      }
-                     return currentPrice; // Giữ nguyên giá nếu không đổi
+                     return currentPrice; // Giữ nguyên state nếu giá không đổi
                  });
-                 // setError(null); // Xóa lỗi nếu thành công (đã làm ở đầu hàm)
             } else {
-                // Nếu API trả về không phải số, coi như lỗi nhẹ
                 console.warn("Received non-numeric price data:", data);
-                // Không ném lỗi nhưng có thể hiển thị cảnh báo nhẹ nếu muốn
-                 setError("Dữ liệu giá không hợp lệ.");
+                setError("Dữ liệu giá không hợp lệ.");
             }
 
         } catch (err: any) {
             console.error("Fetch ticker error:", err);
             setError(err.message);
-            // Quan trọng: Không set price = null ở đây để giữ giá trị cũ hiển thị
         } finally {
-            // Tắt loading ban đầu sau lần fetch đầu tiên (thành công hay thất bại)
-            if (isInitialLoading) {
-                setIsInitialLoading(false);
-            }
-            // Tắt loading refresh chỉ khi là refresh thủ công
+            // Chỉ isInitialLoading mới được set ở đây, và chỉ một lần
+             // Dùng functional update để đảm bảo chỉ set false một lần
+             setIsInitialLoading(currentLoading => {
+                 if (currentLoading) { // Chỉ thay đổi nếu đang là true
+                     return false;
+                 }
+                 return currentLoading; // Giữ nguyên false nếu đã là false
+             });
+
             if (isManualRefresh) {
                 setIsRefreshing(false);
             }
         }
-    }, [onPriceChange, isInitialLoading]); // Thêm isInitialLoading để nó biết khi nào cần tắt loading ban đầu
+    // SỬA LẠI: Bỏ isInitialLoading khỏi dependency array
+    }, [onPriceChange]);
 
+    // SỬA LẠI: useEffect chỉ chạy MỘT LẦN khi mount
     useEffect(() => {
-        fetchTicker(); // Fetch lần đầu (không đánh dấu là manual refresh)
-        const interval = setInterval(() => fetchTicker(false), 10000); // Cập nhật mỗi 10 giây
-        return () => clearInterval(interval);
-    }, []); // Chỉ phụ thuộc vào fetchTicker (đã ổn định với useCallback)
+        console.log("BitcoinTicker: Mounting and setting up interval.");
+        // Gọi fetchTicker lần đầu
+        fetchTicker(); // Không cần (true) vì isInitialLoading mặc định là true
 
-    const displayPrice = price !== null ? formatPrice(price) : '---.--';
+        // Thiết lập interval
+        const interval = setInterval(() => {
+            console.log("BitcoinTicker: Interval tick, fetching ticker.");
+            fetchTicker(false); // Gọi fetch không đánh dấu là manual refresh
+        }, 10000); // Cập nhật mỗi 10 giây
+
+        // Cleanup function
+        return () => {
+            console.log("BitcoinTicker: Unmounting and clearing interval.");
+            clearInterval(interval);
+        };
+    // SỬA LẠI: Mảng dependency rỗng để đảm bảo chỉ chạy khi mount/unmount
+    }, [fetchTicker]); // Chỉ phụ thuộc vào fetchTicker (đã ổn định)
+
+    // ... (phần JSX render giữ nguyên như trước) ...
+     const displayPrice = price !== null ? formatPrice(price) : '---.--';
     const priceColor = error
         ? 'text-gray-500 dark:text-gray-400' // Màu nhạt hơn khi có lỗi (giá có thể cũ)
         : 'text-gray-900 dark:text-gray-50'; // Màu bình thường

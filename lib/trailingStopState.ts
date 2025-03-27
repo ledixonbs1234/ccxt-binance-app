@@ -1,21 +1,20 @@
 export interface TrailingStopState {
-    isActive: boolean;
+    stateKey: string;
+    isActive: boolean; // Vẫn dùng isActive để biết interval còn chạy không
+    // Cập nhật status
+    status?: 'pending_activation' | 'active' | 'triggered' | 'error';
     symbol: string;
-    entryPrice: number;
-    highestPrice: number;
+    entryPrice: number; // Giá tham chiếu ban đầu (vẫn lưu lại)
+    activationPrice?: number; // Giá kích hoạt (nếu có)
+    highestPrice: number; // Giá cao nhất (tính từ lúc active)
     trailingPercent: number;
     quantity: number;
-    orderId?: string;
     checkInterval?: NodeJS.Timeout;
-    // Thêm stateKey để dễ nhận diện khi trả về client
-    stateKey: string;
-    status?: 'active' | 'triggered' | 'error'; // Trạng thái của simulation
-    triggeredAt?: number; // Thời điểm kích hoạt (timestamp)
-    triggerPrice?: number; // Giá kích hoạt thực tế
-    sellOrderId?: string; // ID lệnh bán được tạo ra (nếu thành công)
-    errorMessage?: string; // Lưu lỗi nếu đặt lệnh bán thất bại
+    triggeredAt?: number;
+    triggerPrice?: number;
+    sellOrderId?: string;
+    errorMessage?: string;
 }
-
 // Lưu trữ state trong bộ nhớ (Không dùng cho production!)
 // Dùng Map để dễ quản lý hơn object thông thường
 export const activeTrailingStops = new Map<string, TrailingStopState>();

@@ -7,16 +7,20 @@ import { XCircleIcon } from '@heroicons/react/20/solid'; // Icon nhỏ hơn cho 
 
 type Order = any;
 // Thêm prop type
+// Cập nhật prop type
 type OrderFormProps = {
-  onSimulationStartSuccess: () => void; // Callback để báo cho parent
+  onSimulationStartSuccess: () => void; // Callback khi bắt đầu TS
+  onOrderSuccess: () => void; // Callback khi Market/Limit thành công
 };
 type FormData = {
-  symbol: string; // Thêm symbol, ví dụ: 'BTC/USDT'
+  symbol: string;
   type: 'market' | 'limit' | 'trailing-stop';
   side: 'buy' | 'sell';
-  amount: number;
-  price: number; // Dùng cho Limit và làm Giá tham chiếu cho Trailing Stop
-  trailingPercent: number; // Đổi tên từ callback
+  amount: string; // <-- Lưu dạng chuỗi
+  price: string;  // <-- Lưu dạng chuỗi
+  trailingPercent: string; // <-- Lưu dạng chuỗi
+  useActivationPrice: boolean;
+  activationPrice: string; // <-- Lưu dạng chuỗi
 };
 
 type Notification = {
@@ -33,7 +37,7 @@ const formatNumberInput = (value: string | number): number => {
 };
 
 
-export default function OrderForm({ onSimulationStartSuccess }: OrderFormProps) {
+export default function OrderForm({ onSimulationStartSuccess, onOrderSuccess }: OrderFormProps) {
   const [orderResult, setOrderResult] = useState<Order | null>(null);
   const [simulationStatus, setSimulationStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -43,10 +47,13 @@ export default function OrderForm({ onSimulationStartSuccess }: OrderFormProps) 
     symbol: 'BTC/USDT',
     type: 'market',
     side: 'buy',
-    amount: 0,
-    price: 0,
-    trailingPercent: 1.0,
+    amount: '', // Bắt đầu rỗng
+    price: '',
+    trailingPercent: '1.0', // Có thể giữ giá trị mặc định
+    useActivationPrice: false,
+    activationPrice: '',
   });
+
 
   // Notification Handling (useCallback để tối ưu)
   const addNotification = useCallback((message: string, type: 'success' | 'error') => {
@@ -66,13 +73,31 @@ export default function OrderForm({ onSimulationStartSuccess }: OrderFormProps) 
     setNotifications(prev => prev.filter(notification => notification.id !== id));
   }, []);
 
-  // Input Change Handling
+  // Input Change Handling (Xử lý thêm cho checkbox)
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'number' ? formatNumberInput(value) : value,
-    }));
+    const { name, value, type, checked } = e.target as HTMLInputElement;
+
+    // Chỉ kiểm tra ký tự số, dấu chấm, và đảm bảo chỉ có một dấu chấm
+    const isValidNumberInput = (val: string) => {
+      if (val === '') return true; // Cho phép rỗng
+      // Regex: Cho phép số nguyên hoặc số thập phân (có thể bắt đầu bằng 0.)
+      return /^(0|[1-9]\d*)(\.\d*)?$/.test(val) || /^0\.$/.test(val);
+    }
+
+    setFormData(prev => {
+      let newValue = value;
+      // Chỉ cho phép nhập số hợp lệ vào các trường number
+      if (['amount', 'price', 'trailingPercent', 'activationPrice'].includes(name)) {
+        if (!isValidNumberInput(value)) {
+          newValue = prev[name as keyof FormData] as string; // Giữ giá trị cũ nếu nhập không hợp lệ
+        }
+      }
+
+      return {
+        ...prev,
+        [name]: type === 'checkbox' ? checked : newValue,
+      }
+    });
   };
 
   // Auto switch side for Trailing Stop
@@ -86,6 +111,11 @@ export default function OrderForm({ onSimulationStartSuccess }: OrderFormProps) 
   const submitOrder = async (e: FormEvent) => {
     e.preventDefault();
     if (loading) return;
+    // *** PARSE GIÁ TRỊ TRƯỚC KHI GỬI API ***
+    const amountNum = parseFloat(formData.amount) || 0;
+    const priceNum = parseFloat(formData.price) || 0;
+    const trailingPercentNum = parseFloat(formData.trailingPercent) || 0;
+    const activationPriceNum = parseFloat(formData.activationPrice) || 0;
 
     setLoading(true);
     setError(null);
@@ -101,87 +131,95 @@ export default function OrderForm({ onSimulationStartSuccess }: OrderFormProps) 
     try {
       // --- Validate Inputs ---
       if (!formData.symbol) throw new Error('Vui lòng nhập Symbol.');
-      if (formData.amount <= 0) throw new Error('Số lượng phải lớn hơn 0.');
+      if (amountNum <= 0) throw new Error('Số lượng phải lớn hơn 0.');
 
       // --- Logic riêng cho từng loại lệnh ---
       if (isTrailingStop) {
-          // Validate trailing stop
-          if (formData.side === 'buy') throw new Error('Trailing Stop chỉ hỗ trợ lệnh Bán (Stop Loss).');
-          if (formData.price <= 0) throw new Error('Giá tham chiếu ban đầu phải lớn hơn 0.');
-          if (formData.trailingPercent <= 0 || formData.trailingPercent > 10) throw new Error('Trailing Percent phải từ 0.1% đến 10%.');
+        // Validate trailing stop với giá trị number
+        if (formData.side === 'buy') throw new Error('Trailing Stop chỉ hỗ trợ lệnh Bán (Stop Loss).');
+        // Sử dụng priceNum (giá tham chiếu đã parse)
+        if (priceNum <= 0) throw new Error('Giá tham chiếu ban đầu phải lớn hơn 0.');
+        if (trailingPercentNum <= 0 || trailingPercentNum > 10) throw new Error('Trailing Percent phải từ 0.1% đến 10%.');
+        if (formData.useActivationPrice && activationPriceNum <= 0) {
+          throw new Error('Giá kích hoạt phải lớn hơn 0.');
+        }
+        payload = {
+          symbol: formData.symbol,
+          quantity: amountNum, // Dùng giá trị số
+          trailingPercent: trailingPercentNum, // Dùng giá trị số
+          entryPrice: priceNum, // Dùng giá trị số
+          useActivationPrice: formData.useActivationPrice,
+          activationPrice: formData.useActivationPrice ? activationPriceNum : undefined, // Dùng giá trị số
+        };
+        successMessagePrefix = `Bắt đầu theo dõi Trailing Stop Loss ${formData.trailingPercent}%`;
+        if (formData.useActivationPrice) {
+          successMessagePrefix += ` (kích hoạt tại ${formData.activationPrice})`;
+        }
+        // --- API Call ***CHỈ*** cho Trailing Stop ---
+        console.log(`[${formData.symbol}] Sending request to ${apiEndpoint}`); // Log trước khi fetch
+        const res = await fetch(apiEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        console.log(`[${formData.symbol}] Received response from ${apiEndpoint}`, data); // Log kết quả
 
-          // Chuẩn bị payload và thông báo
-          payload = {
-            symbol: formData.symbol,
-            quantity: formData.amount,
-            trailingPercent: formData.trailingPercent,
-            entryPrice: formData.price,
-          };
-          successMessagePrefix = `Bắt đầu theo dõi Trailing Stop Loss ${formData.trailingPercent}%`;
+        if (!res.ok) {
+          throw new Error(data.message || data.error || `Lỗi ${res.status} từ API`);
+        }
 
-          // --- API Call ***CHỈ*** cho Trailing Stop ---
-          console.log(`[${formData.symbol}] Sending request to ${apiEndpoint}`); // Log trước khi fetch
-          const res = await fetch(apiEndpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
-          const data = await res.json();
-          console.log(`[${formData.symbol}] Received response from ${apiEndpoint}`, data); // Log kết quả
-
-          if (!res.ok) {
-            throw new Error(data.message || data.error || `Lỗi ${res.status} từ API`);
-          }
-
-          // Xử lý thành công cho Trailing Stop
-          onSimulationStartSuccess(); // Gọi callback
-          setSimulationStatus(data.message || 'Yêu cầu đã được gửi.');
-          const successMessage = `${successMessagePrefix} cho ${formData.amount} ${formData.symbol.split('/')[0]}.`;
-          addNotification(successMessage, 'success');
+        // Xử lý thành công cho Trailing Stop
+        onSimulationStartSuccess(); // Gọi callback
+        setSimulationStatus(data.message || 'Yêu cầu đã được gửi.');
+        const successMessage = `${successMessagePrefix} cho ${formData.amount} ${formData.symbol.split('/')[0]}.`;
+        addNotification(successMessage, 'success');
 
       } else { // Market or Limit
-          // Validate limit price
-          if (formData.type === 'limit' && formData.price <= 0) throw new Error('Giá giới hạn phải lớn hơn 0.');
 
-          // Chuẩn bị payload và thông báo
-          payload = {
-            symbol: formData.symbol,
-            type: formData.type,
-            side: formData.side,
-            amount: formData.amount,
-            price: formData.type === 'limit' ? formData.price : undefined,
-          };
-          const actionType = formData.side === 'buy' ? 'Mua' : 'Bán';
-          const orderType = formData.type;
-          successMessagePrefix = `${actionType} thành công (${orderType})`;
+        // Chuẩn bị payload và thông báo
+        payload = {
+          symbol: formData.symbol,
+          type: formData.type,
+          side: formData.side,
+          amount: amountNum, // Dùng giá trị số
+          price: formData.type === 'limit' ? priceNum : undefined, // Dùng giá trị số
+        };
+        const actionType = formData.side === 'buy' ? 'Mua' : 'Bán';
+        const orderType = formData.type;
+        successMessagePrefix = `${actionType} thành công (${orderType})`;
 
-          // --- API Call ***CHỈ*** cho Market/Limit ---
-          console.log(`[${formData.symbol}] Sending request to ${apiEndpoint}`); // Log trước khi fetch
-          const res = await fetch(apiEndpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
-          const data = await res.json();
-          console.log(`[${formData.symbol}] Received response from ${apiEndpoint}`, data); // Log kết quả
+        // --- API Call ***CHỈ*** cho Market/Limit ---
+        console.log(`[${formData.symbol}] Sending request to ${apiEndpoint}`); // Log trước khi fetch
+        const res = await fetch(apiEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        console.log(`[${formData.symbol}] Received response from ${apiEndpoint}`, data); // Log kết quả
 
-          if (!res.ok) {
-            throw new Error(data.message || data.error || `Lỗi ${res.status} từ API`);
-          }
+        if (!res.ok) {
+          throw new Error(data.message || data.error || `Lỗi ${res.status} từ API`);
+        }
 
-          // Xử lý thành công cho Market/Limit
-          setOrderResult(data);
-          const successMessage = `${successMessagePrefix} cho ${formData.amount} ${formData.symbol.split('/')[0]}.`;
-          addNotification(successMessage, 'success');
-          // Có thể gọi callback refresh khác ở đây nếu cần cập nhật Balance/History ngay
+        // Xử lý thành công cho Market/Limit
+        setOrderResult(data);
+        const successMessage = `${successMessagePrefix} cho ${formData.amount} ${formData.symbol.split('/')[0]}.`;
+        addNotification(successMessage, 'success');
+        // Có thể gọi callback refresh khác ở đây nếu cần cập nhật Balance/History ngay
+        // *** GỌI CALLBACK KHI MARKET/LIMIT THÀNH CÔNG ***
+        onOrderSuccess(); // Thông báo cho parent để refresh Balance/History
       }
 
       // --- Logic chung sau khi một trong các lệnh gọi API thành công ---
       // Reset Form
       setFormData(prev => ({
         ...prev,
-        amount: 0,
-        price: (prev.type === 'limit' || prev.type === 'trailing-stop') ? 0 : prev.price,
+        amount: '', // Reset về chuỗi rỗng
+        price: '',  // Reset về chuỗi rỗng
+        activationPrice: '', // Reset về chuỗi rỗng
+        // Giữ lại trailingPercent hoặc reset tùy ý
       }));
 
     } catch (err: any) {
@@ -198,7 +236,59 @@ export default function OrderForm({ onSimulationStartSuccess }: OrderFormProps) 
   // Input/Select shared classes
   const inputBaseClasses = "block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900 dark:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed";
   const labelBaseClasses = "block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1";
+  // Thêm hàm định dạng giá tiền (ví dụ: USDT)
+  const formatCurrency = (value: number | undefined | null, currency = 'USD', digits = 2) => {
+    if (value === undefined || value === null || isNaN(value)) return '___';
 
+    // Chuẩn hóa mã tiền tệ: Nếu là USDT hoặc các stablecoin tương tự, dùng USD
+    let displayCurrency = currency.toUpperCase();
+    if (['USDT', 'USDC', 'BUSD', 'TUSD', 'DAI'].includes(displayCurrency)) { // Có thể thêm các stablecoin khác
+      displayCurrency = 'USD';
+    }
+
+    // Kiểm tra xem displayCurrency có phải là mã hợp lệ không (tùy chọn, phòng lỗi)
+    // Bạn có thể thêm danh sách các mã hợp lệ nếu muốn kiểm tra kỹ hơn
+    // const validIsoCodes = ['USD', 'EUR', 'JPY', 'VND', ...];
+    // if (!validIsoCodes.includes(displayCurrency)) {
+    //   console.warn(`Invalid currency code for formatting: ${currency}. Falling back to USD.`);
+    //   displayCurrency = 'USD';
+    // }
+
+    try {
+      return value.toLocaleString('en-US', { // Hoặc 'vi-VN' nếu muốn định dạng Việt Nam
+        style: 'currency',
+        currency: displayCurrency, // Sử dụng mã đã chuẩn hóa
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits,
+      });
+    } catch (error) {
+      // Nếu vẫn lỗi (ví dụ mã tiền tệ không được hỗ trợ bởi trình duyệt/hệ thống)
+      console.error("Error formatting currency:", value, currency, error);
+      // Fallback: Hiển thị số và mã gốc
+      return `${value.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })} ${currency}`;
+    }
+  };
+  let trailingAmountDisplay = '___';
+  let estimatedStopPriceDisplay = '___';
+  const quoteCurrency = formData.symbol.split('/')[1]?.toUpperCase() || 'USD'; // Lấy và viết hoa, fallback về USD
+  const priceNumForDisplay = parseFloat(formData.price) || 0;
+  const trailingPercentNumForDisplay = parseFloat(formData.trailingPercent) || 0;
+  const activationPriceNumForDisplay = parseFloat(formData.activationPrice) || 0;
+  if (formData.type === 'trailing-stop' && priceNumForDisplay > 0 && trailingPercentNumForDisplay > 0) {
+    // Dùng giá kích hoạt (nếu có và hợp lệ) để tính toán hiển thị
+    const refPrice = formData.useActivationPrice && activationPriceNumForDisplay > 0
+      ? activationPriceNumForDisplay
+      : priceNumForDisplay;
+    const trailingAmount = refPrice * (trailingPercentNumForDisplay / 100);
+    const estimatedStopPrice = refPrice * (1 - trailingPercentNumForDisplay / 100);
+
+    trailingAmountDisplay = formatCurrency(trailingAmount, quoteCurrency, 2); // Hoặc formatCryptoValue
+    estimatedStopPriceDisplay = formatCurrency(estimatedStopPrice, quoteCurrency, 2); // Hoặc formatCryptoValue
+  }
+  // Định dạng giá tham chiếu để hiển thị
+  const formattedReferencePrice = formatCurrency(priceNumForDisplay > 0 ? priceNumForDisplay : null, quoteCurrency, 2);
+  // Định dạng giá kích hoạt để hiển thị
+  const formattedActivationPrice = formatCurrency(activationPriceNumForDisplay > 0 ? activationPriceNumForDisplay : null, quoteCurrency, 2);
 
   return (
     <div className="bg-white dark:bg-gray-800 p-5 md:p-6 rounded-lg shadow-md mb-6 border border-gray-200 dark:border-gray-700 relative">
@@ -292,12 +382,11 @@ export default function OrderForm({ onSimulationStartSuccess }: OrderFormProps) 
         <div>
           <label htmlFor="amount" className={labelBaseClasses}>Số lượng ({formData.symbol.split('/')[0]}):</label>
           <input
-            type="number"
+            type="text" // ĐỔI THÀNH TEXT để kiểm soát hoàn toàn
+            inputMode="decimal" // Gợi ý bàn phím số thập phân trên mobile
             id="amount"
             name="amount"
-            step="any" // Cho phép số thập phân linh hoạt
-            min="0" // Không cho nhập số âm
-            value={formData.amount} // Hiển thị rỗng nếu là 0
+            value={formData.amount} // Hiển thị giá trị chuỗi
             onChange={handleInputChange}
             required
             className={inputBaseClasses}
@@ -305,22 +394,25 @@ export default function OrderForm({ onSimulationStartSuccess }: OrderFormProps) 
           />
         </div>
 
-        {/* Price (for Limit) */}
-        {formData.type === 'limit' && (
+        {/* Price Input (Limit/Reference) (đổi type="text") */}
+        {(formData.type === 'limit' ) && (
           <div>
-            <label htmlFor="price" className={labelBaseClasses}>Giá ({formData.symbol.split('/')[1]}):</label>
+            <label htmlFor="price" className={labelBaseClasses}>
+              {formData.type === 'limit' ? `Giá (${quoteCurrency}):` : `Giá tham chiếu ban đầu (${quoteCurrency}):`}
+            </label>
             <input
-              type="number"
+              type="text"
+              inputMode="decimal"
               id="price"
               name="price"
-              value={formData.price > 0 ? formData.price : ''}
+              value={formData.price}
               onChange={handleInputChange}
               required
-              step="any"
-              min="0"
               className={inputBaseClasses}
               placeholder="0.00"
             />
+            {/* Chỉ hiển thị stop loss ước tính cho trailing stop */}
+            
           </div>
         )}
 
@@ -331,44 +423,102 @@ export default function OrderForm({ onSimulationStartSuccess }: OrderFormProps) 
             <div>
               <label htmlFor="ts-price" className={labelBaseClasses}>Giá tham chiếu ban đầu ({formData.symbol.split('/')[1]}):</label>
               <input
-                type="number"
+                type="text" // ĐỔI THÀNH TEXT để kiểm soát hoàn toàn
+                inputMode="decimal" // Gợi ý bàn phím số thập phân trên mobile
                 id="ts-price"
                 name="price" // Vẫn dùng name="price"
-                value={formData.price > 0 ? formData.price : ''}
+                value={formData.price}
                 onChange={handleInputChange}
                 required
-                step="any"
                 className={inputBaseClasses}
                 placeholder="Giá mua vào hoặc giá bắt đầu theo dõi"
               />
+              {/* Chỉ hiển thị stop loss ước tính cho trailing stop */}
+              {formData.type === 'trailing-stop' && (
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Giá cao nhất sẽ được tính từ mức này.
+                Ước tính Stop Loss ban đầu: <span className="font-semibold text-red-600 dark:text-red-400">{estimatedStopPriceDisplay}</span> ({formData.useActivationPrice ? 'sau kích hoạt' : 'nếu giá giảm ngay'})
               </p>
+            )}
+              {/* <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Giá cao nhất sẽ được tính từ mức này.
+              </p> */}
             </div>
+            {/* --- Thêm Checkbox và Input Giá Kích Hoạt --- */}
+            <div className="relative flex items-start">
+              <div className="flex h-6 items-center">
+                <input
+                  id="useActivationPrice"
+                  name="useActivationPrice"
+                  type="checkbox"
+                  checked={formData.useActivationPrice}
+                  onChange={handleInputChange}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                />
+              </div>
+              <div className="ml-3 text-sm leading-6">
+                <label htmlFor="useActivationPrice" className="font-medium text-gray-900 dark:text-gray-100">
+                  Sử dụng Giá Kích Hoạt
+                </label>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Chỉ bắt đầu theo dõi Trailing Stop khi giá đạt mức này.</p>
+              </div>
+            </div>
+
+            {/* Input Giá Kích Hoạt (hiển thị có điều kiện, đổi type="text") */}
+            {formData.useActivationPrice && (
+              <div>
+                <label htmlFor="activationPrice" className={labelBaseClasses}>Giá Kích Hoạt ({quoteCurrency}):</label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  id="activationPrice"
+                  name="activationPrice"
+                  value={formData.activationPrice}
+                  onChange={handleInputChange}
+                  required
+                  className={inputBaseClasses}
+                  placeholder={`Giá ${quoteCurrency} để bắt đầu theo dõi`}
+                />
+              </div>
+            )}
+            {/* ----------------------------------------- */}
+
 
             {/* Trailing Percent */}
             <div>
               <label htmlFor="trailingPercent" className={labelBaseClasses}>Trailing Percent (%):</label>
               <input
-                type="number"
+                type="text" // ĐỔI THÀNH TEXT để kiểm soát hoàn toàn
+                inputMode="decimal" // Gợi ý bàn phím số thập phân trên mobile
                 id="trailingPercent"
                 name="trailingPercent"
-                value={formData.trailingPercent > 0 ? formData.trailingPercent : ''}
+                value={formData.trailingPercent}
                 onChange={handleInputChange}
                 required
-                step="0.1"
-                min="0.1"
-                max="10"
                 className={inputBaseClasses}
                 placeholder="1.0"
               />
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Khoảng cách % từ giá cao nhất để kích hoạt Stop Loss (0.1% - 10%).
+                Khoảng cách Stop: <span className="font-semibold">≈ {trailingAmountDisplay}</span> (tính từ giá {formData.useActivationPrice ? 'kích hoạt' : 'tham chiếu'})
               </p>
-              {/* Info Box */}
+              {/* Info Box - Sử dụng giá trị đã định dạng */}
               <div className="mt-3 text-xs text-blue-700 dark:text-blue-300 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-md border border-blue-200 dark:border-blue-800/50">
                 <p className="font-medium flex items-center"><InformationCircleIcon className="w-4 h-4 mr-1" />Trailing Stop Loss (Giả lập)</p>
-                <p className="mt-1">Khi giá giảm <span className="font-semibold">{formData.trailingPercent || '___'}%</span> từ mức cao nhất (kể từ giá <span className="font-semibold">{formData.price > 0 ? formData.price : '___'}</span>), một lệnh <span className="font-semibold">Market Sell</span> sẽ tự động được đặt ở phía server.</p>
+                {formData.useActivationPrice ? (
+                  <p className="mt-1">
+                    Khi giá thị trường đạt <span className="font-semibold">{formattedActivationPrice}</span>,
+                    hệ thống sẽ bắt đầu theo dõi. Nếu giá sau đó giảm <span className="font-semibold">{formData.trailingPercent || '___'}%</span> từ mức cao nhất (tính từ lúc kích hoạt),
+                    lệnh <span className="font-semibold">Market Sell</span> sẽ được đặt.
+                  </p>
+                ) : (
+                  <p className="mt-1">
+                    Khi giá giảm <span className="font-semibold">{formData.trailingPercent || '___'}%</span> từ mức cao nhất (ban đầu là <span className="font-semibold">{formattedReferencePrice}</span>),
+                    một lệnh <span className="font-semibold">Market Sell</span> sẽ được đặt.
+                  </p>
+                )}
+                <p className="mt-1">Giá Stop Loss sẽ tự động điều chỉnh tăng theo giá thị trường.</p>
+                <p className="mt-1 text-orange-600 dark:text-orange-400 font-medium">
+                  Giá Stop Loss ước tính ban đầu ({formData.useActivationPrice ? 'sau kích hoạt' : 'ngay lập tức'}): <span className="font-bold">{estimatedStopPriceDisplay}</span>.
+                </p>
               </div>
             </div>
           </div>

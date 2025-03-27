@@ -12,14 +12,14 @@ export default function Home() {
   const [currentBtcPrice, setCurrentBtcPrice] = useState<number | null>(null);
   const [balanceUpdateKey, setBalanceUpdateKey] = useState<number>(Date.now());
   const [orderHistoryKey, setOrderHistoryKey] = useState<number>(Date.now());
-  // Thêm key state cho TrailingStopMonitor
   const [monitorKey, setMonitorKey] = useState<number>(Date.now());
 
   const handlePriceChange = useCallback((price: number) => {
     setCurrentBtcPrice(price);
   }, []);
 
-  // Callback để refresh Balance và OrderHistory (khi lệnh bán của TS hoàn thành)
+  // Callback để refresh Balance và OrderHistory
+  // Được gọi khi lệnh Trailing Stop bán xong HOẶC lệnh Market/Limit đặt xong
   const handleDataRefresh = useCallback(() => {
     console.log(">>> Triggering data refresh (Balance & History) <<<");
     setBalanceUpdateKey(Date.now());
@@ -29,7 +29,7 @@ export default function Home() {
   // Callback để refresh TrailingStopMonitor (khi bắt đầu một TS mới)
   const handleSimulationStarted = useCallback(() => {
     console.log(">>> Triggering monitor refresh (Simulation Started) <<<");
-    setMonitorKey(Date.now()); // Cập nhật key để trigger monitor remount/refetch
+    setMonitorKey(Date.now());
   }, []);
 
   return (
@@ -47,16 +47,18 @@ export default function Home() {
              <BalanceDisplay key={balanceUpdateKey} />
         </div>
         <div className="lg:col-span-3">
-             {/* Truyền callback mới xuống OrderForm */}
-             <OrderForm onSimulationStartSuccess={handleSimulationStarted} />
+             {/* Truyền cả hai callback xuống OrderForm */}
+             <OrderForm
+                 onSimulationStartSuccess={handleSimulationStarted}
+                 onOrderSuccess={handleDataRefresh} // Callback khi Market/Limit thành công
+             />
         </div>
       </div>
 
        <div className="mb-6">
-          {/* Sử dụng key mới và truyền callback refresh balance/history */}
           <TrailingStopMonitor
               key={monitorKey}
-              onSimulationTriggered={handleDataRefresh}
+              onSimulationTriggered={handleDataRefresh} // Vẫn dùng handleDataRefresh khi TS trigger bán xong
           />
        </div>
 
@@ -64,7 +66,7 @@ export default function Home() {
           <OrderHistory
               key={orderHistoryKey}
               currentPrice={currentBtcPrice}
-              onBalanceUpdate={handleDataRefresh}
+              onBalanceUpdate={handleDataRefresh} // Dùng handleDataRefresh cho nút refresh thủ công
           />
        </div>
     </div>

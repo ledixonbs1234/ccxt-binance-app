@@ -2,8 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import ccxt, { Exchange, Ticker, Order } from 'ccxt';
 import { NextResponse } from 'next/server';
-import { activeTrailingStops, updateTrailingStopState, removeTrailingStopState, TrailingStopState } from '../lib/trailingStopState'; // Điều chỉnh đường dẫn nếu cần
-
+import { activeTrailingStops, updateTrailingStopState, removeTrailingStopState, TrailingStopState } from '@/lib/trailingStopState'; // Sử dụng alias @
 const REMOVAL_DELAY = 20000; // Xóa state khỏi bộ nhớ sau 20 giây kể từ khi trigger
 
 // Lưu ý: Lưu state trong bộ nhớ như thế này KHÔNG phù hợp cho production
@@ -16,14 +15,15 @@ export async function POST(req: Request) { // Đổi tên thành POST, nhận Re
     try {
         // Lấy body từ request
         const body = await req.json();
-        const { symbol, quantity, trailingPercent, entryPrice } = body;
+        const { symbol, quantity, trailingPercent, entryPrice, useActivationPrice, activationPrice } = body;
 
-        // --- Validate input (Giữ nguyên hoặc cải thiện) ---
-        if (!symbol || typeof quantity !== 'number' || quantity <= 0 || typeof trailingPercent !== 'number' || trailingPercent <= 0 || trailingPercent >= 100 || typeof entryPrice !== 'number' || entryPrice <= 0) {
-            // Trả về lỗi bằng NextResponse
+        // --- Validate input (Thêm validate activationPrice) ---
+        if (!symbol || typeof quantity !== 'number' || quantity <= 0 || /* ... */ typeof entryPrice !== 'number' || entryPrice <= 0) {
             return NextResponse.json({ message: 'Missing or invalid parameters' }, { status: 400 });
         }
-        // --- Kết thúc validate ---
+        if (useActivationPrice && (typeof activationPrice !== 'number' || activationPrice <= 0)) {
+            return NextResponse.json({ message: 'Invalid activation price' }, { status: 400 });
+        }
 
         const exchange = new ccxt.binance({
             apiKey: process.env.BINANCE_API_KEY,
@@ -32,135 +32,124 @@ export async function POST(req: Request) { // Đổi tên thành POST, nhận Re
         });
         exchange.setSandboxMode(true);
         const stateKey = `${symbol}-${Date.now()}`;
-
+        const needsActivation = useActivationPrice && activationPrice > 0;
         // --- Khởi tạo State bằng hàm update ---
         const initialState: TrailingStopState = {
-            stateKey, // Lưu lại stateKey
-            isActive: true,
-            status: 'active', // Thêm status ban đầu
+            stateKey,
+            isActive: true, // Luôn active ban đầu để interval chạy
+            status: needsActivation ? 'pending_activation' : 'active', // Status dựa vào activation
+            activationPrice: needsActivation ? activationPrice : undefined,
             symbol,
             entryPrice,
-            highestPrice: entryPrice,
+            highestPrice: entryPrice, // Bắt đầu từ entryPrice
             trailingPercent,
             quantity,
-            checkInterval: undefined, // Sẽ gán sau
+            checkInterval: undefined,
         };
         updateTrailingStopState(stateKey, initialState); // Thêm vào Map
-        console.log(`[${stateKey}] Starting trailing stop simulation for ${symbol}`);
+        console.log(`[${stateKey}] Starting simulation for ${symbol}. Status: ${initialState.status}${needsActivation ? ` (Activation @ ${activationPrice})` : ''}`);
 
         // --- Bắt đầu vòng lặp theo dõi (Giữ nguyên logic bên trong) ---
         // !!! Cảnh báo: setInterval vẫn không lý tưởng cho production !!!
         const intervalId = setInterval(async () => {
             const state = activeTrailingStops.get(stateKey);
-            // console.log(state)
-
-            // Nếu state không còn (do đã bị xóa bởi timeout) thì dừng interval này lại
             if (!state) {
-                console.log(`[${stateKey}] State removed, stopping interval.`);
-                // Trước mỗi lần gọi clearInterval
-                console.log(`[${stateKey}] Attempting to clear interval ID: ${intervalId} (Source: Trigger/Error/!state check)`);
-                clearInterval(intervalId);
-                return;
+                clearInterval(intervalId); return;
             }
-            // Chỉ kiểm tra isActive nếu state tồn tại
+            // Nếu không active nữa (do trigger/error/manual stop) thì dừng
             if (!state.isActive) {
-                console.log(`[${stateKey}] State is no longer active (status: ${state.status}), interval doing nothing.`);
-                // Không cần clear interval ở đây nữa vì nó đã được clear khi trigger/error
+                 // Đã được clear ở nơi khác, ko cần clear lại
                 return;
             }
-
 
             try {
-                // console.log(`[${stateKey}] Checking price for ${state.symbol}...`); // Bỏ bớt log nếu quá nhiều
                 const ticker: Ticker = await exchange.fetchTicker(state.symbol);
                 const currentPrice = ticker.last;
-
                 if (!currentPrice) {
-                    console.error(`[${stateKey}] Could not fetch current price for ${state.symbol}.`);
-                    return; // Bỏ qua lần kiểm tra này
+                     console.error(`[${stateKey}] Could not fetch current price.`);
+                     return;
                 }
 
-                let updatedHighestPrice = state.highestPrice;
-                if (currentPrice > state.highestPrice) {
-                    updatedHighestPrice = currentPrice;
-                    console.log(`[${stateKey}] New highest price: ${updatedHighestPrice}`);
-                }
+                // --- Logic chính dựa trên Status ---
+                let currentStatus = state.status; // Lấy status hiện tại
 
-                // Tính toán giá stop loss động
-                const stopPrice = state.highestPrice * (1 - state.trailingPercent / 100);
-                // console.log(`[${stateKey}] Current: ${currentPrice}, Stop: ${stopPrice.toFixed(4)}`); // Bỏ bớt log
-                // *** QUAN TRỌNG: Cập nhật lại state trong Map ***
-
-                // *** Cập nhật state với highestPrice mới (quan trọng) ***
-                updateTrailingStopState(stateKey, { ...state, highestPrice: updatedHighestPrice }); // <-- SỬA Ở ĐÂY
-
-                // Kiểm tra điều kiện kích hoạt bán
-                console.log(currentPrice, stopPrice);
-                if (currentPrice && currentPrice <= stopPrice) {
-                    console.log(`[${stateKey}] TRIGGERED! Current ${currentPrice} <= Stop ${stopPrice}. Placing market sell...`);
-
-                    // *** Đánh dấu state là không active ngay lập tức ***
-                    updateTrailingStopState(stateKey, {
-                        ...state,
-                        isActive: false, // Ngừng xử lý tiếp trong các vòng lặp sau
-                        status: 'triggered', // Đánh dấu là đã kích hoạt
-                        triggerPrice: currentPrice, // Lưu giá kích hoạt
-                        triggeredAt: Date.now(), // Lưu thời điểm kích hoạt
-                        //    checkInterval: undefined, // Xóa interval ID khỏi state (nhưng chưa clear interval)
-                    });
-                    clearInterval(intervalId); // Dừng việc check giá ngay lập tức
-
-                    // *** Thực hiện lệnh Market Sell ***
-                    try {
-                        const sellOrder: Order = await exchange.createMarketSellOrder(state.symbol, state.quantity);
-                        console.log(`[${stateKey}] Market sell order placed successfully: ID ${sellOrder.id}`);
-
-                        // *** Cập nhật state với ID lệnh bán và đánh dấu thành công ***
-                        // Lưu ý: lấy lại state mới nhất từ Map phòng trường hợp có cập nhật khác
-                        const currentState = activeTrailingStops.get(stateKey);
-                        if (currentState) { // Kiểm tra state còn tồn tại không
-                            updateTrailingStopState(stateKey, {
-                                ...currentState,
-                                sellOrderId: sellOrder.id, // Lưu ID lệnh bán
-                                // status có thể để là 'triggered' hoặc đổi thành 'sold' nếu muốn
-                            });
-                        }
-
-                        // *** Lên lịch xóa state khỏi bộ nhớ sau một khoảng trễ ***
-                        setTimeout(() => {
-                            removeTrailingStopState(stateKey);
-                            console.log(`[${stateKey}] State removed after delay.`);
-                        }, REMOVAL_DELAY);
-
-
-                    } catch (sellError: any) {
-                        const errorMessage = sellError.message || sellError;
-                        console.error(`[${stateKey}] FAILED to place market sell order:`, errorMessage);
-
-                        // *** Cập nhật state với thông báo lỗi ***
-                        const currentState = activeTrailingStops.get(stateKey);
-                        if (currentState) {
-                            updateTrailingStopState(stateKey, {
-                                ...currentState,
-                                status: 'error', // Đánh dấu lỗi
-                                errorMessage: errorMessage,
-                            });
-                            // Có thể cũng lên lịch xóa state lỗi sau một khoảng trễ
-                            setTimeout(() => removeTrailingStopState(stateKey), REMOVAL_DELAY * 2); // Xóa lỗi sau khoảng tgian dài hơn?
-                        }
+                // 1. Kiểm tra kích hoạt nếu đang chờ
+                if (currentStatus === 'pending_activation' && state.activationPrice) {
+                    console.log(`[${stateKey}] Pending activation. Current: ${currentPrice}, Activation: ${state.activationPrice}`);
+                    if (currentPrice >= state.activationPrice) {
+                        console.log(`[${stateKey}] *** ACTIVATED *** at price ${currentPrice}`);
+                        // Cập nhật state: chuyển status, đặt lại highestPrice từ giá hiện tại
+                        updateTrailingStopState(stateKey, {
+                            ...state,
+                            status: 'active',
+                            highestPrice: currentPrice, // Bắt đầu theo dõi từ giá kích hoạt
+                        });
+                        currentStatus = 'active'; // Chuyển sang xử lý active ngay trong lần lặp này
+                    } else {
+                        return; // Chưa đạt giá kích hoạt, đợi lần sau
                     }
                 }
 
+                // 2. Xử lý khi đã active (hoặc vừa được kích hoạt)
+                if (currentStatus === 'active') {
+                    // Lấy lại state mới nhất sau khi có thể đã kích hoạt
+                    const activeState = activeTrailingStops.get(stateKey);
+                    if (!activeState || !activeState.isActive) return; // Kiểm tra lại phòng trường hợp state bị thay đổi
+
+                    let updatedHighestPrice = activeState.highestPrice;
+                    if (currentPrice > activeState.highestPrice) {
+                        updatedHighestPrice = currentPrice;
+                        console.log(`[${stateKey}] New highest price: ${updatedHighestPrice}`);
+                    }
+
+                    // Tính stop price dựa trên highestPrice MỚI NHẤT
+                    const stopPrice = updatedHighestPrice * (1 - activeState.trailingPercent / 100);
+
+                    // Cập nhật state với highestPrice mới nhất (luôn cập nhật)
+                    updateTrailingStopState(stateKey, { ...activeState, highestPrice: updatedHighestPrice });
+
+                    // Kiểm tra trigger
+                     console.log(`[${stateKey}] Active. Current: ${currentPrice}, Highest: ${updatedHighestPrice}, Stop: ${stopPrice.toFixed(4)}`);
+                    if (currentPrice <= stopPrice) {
+                        console.log(`[${stateKey}] TRIGGERED! Current ${currentPrice} <= Stop ${stopPrice}.`);
+                         // --- Logic Trigger (giữ nguyên từ trước) ---
+                         updateTrailingStopState(stateKey, {
+                            ...activeState, // Dùng activeState lấy được ở trên
+                            highestPrice: updatedHighestPrice, // Lưu lại highest price cuối cùng
+                            isActive: false,
+                            status: 'triggered',
+                            triggerPrice: currentPrice,
+                            triggeredAt: Date.now(),
+                         });
+                        clearInterval(intervalId); // Dừng interval ngay
+
+                        // Thực hiện bán
+                        try {
+                            const sellOrder: Order = await exchange.createMarketSellOrder(activeState.symbol, activeState.quantity);
+                            console.log(`[${stateKey}] Market sell order placed: ID ${sellOrder.id}`);
+                            // Cập nhật state với sellOrderId
+                             const finalState = activeTrailingStops.get(stateKey);
+                             if(finalState) updateTrailingStopState(stateKey, { ...finalState, sellOrderId: sellOrder.id });
+                             // Lên lịch xóa
+                             setTimeout(() => removeTrailingStopState(stateKey), REMOVAL_DELAY);
+                        } catch (sellError: any) {
+                             console.error(`[${stateKey}] FAILED sell order:`, sellError.message || sellError);
+                             // Cập nhật state lỗi
+                             const finalState = activeTrailingStops.get(stateKey);
+                              if(finalState) updateTrailingStopState(stateKey, { ...finalState, status: 'error', errorMessage: sellError.message || sellError });
+                              // Lên lịch xóa lỗi
+                              setTimeout(() => removeTrailingStopState(stateKey), REMOVAL_DELAY * 2);
+                        }
+                        // --- Kết thúc Logic Trigger ---
+                    }
+                }
+                // Các status khác ('triggered', 'error') không cần xử lý thêm trong interval
+
             } catch (fetchError: any) {
-                console.error(`[${stateKey}] Error in interval for ${state.symbol}:`, fetchError.message || fetchError);
-                // Cân nhắc dừng nếu lỗi nghiêm trọng (ví dụ: symbol không hợp lệ)
-                // if (isSevereError(fetchError)) {
-                //     clearInterval(intervalId);
-                //     state.isActive = false;
-                //     delete activeTrailingStops[stateKey];
-                // }
+                 console.error(`[${stateKey}] Error in interval:`, fetchError.message || fetchError);
+                 // Xử lý lỗi fetch (có thể dừng nếu lỗi nghiêm trọng)
             }
-        }, 10000); // Vẫn kiểm tra mỗi 10 giây (Cân nhắc tần suất)
+        }, 10000); // Interval
 
         // *** Cập nhật intervalId vào state trong Map ***
         updateTrailingStopState(stateKey, { ...initialState, checkInterval: intervalId });
