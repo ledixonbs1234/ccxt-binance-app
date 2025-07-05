@@ -4,6 +4,8 @@
 import { useState, ChangeEvent, FormEvent, useEffect, useCallback } from 'react';
 import { PencilSquareIcon, CheckCircleIcon, ExclamationCircleIcon, InformationCircleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { XCircleIcon } from '@heroicons/react/20/solid'; // Icon nhỏ hơn cho nút close notification
+import { useTrading } from '../contexts/TradingContext';
+import { generateUniqueId } from '../lib/utils';
 
 type Order = any;
 // Thêm prop type
@@ -36,8 +38,8 @@ const formatNumberInput = (value: string | number): number => {
   return value;
 };
 
-
 export default function OrderForm({ onSimulationStartSuccess, onOrderSuccess }: OrderFormProps) {
+  const { selectedCoin, coinsData } = useTrading();
   const [orderResult, setOrderResult] = useState<Order | null>(null);
   const [simulationStatus, setSimulationStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -57,7 +59,7 @@ export default function OrderForm({ onSimulationStartSuccess, onOrderSuccess }: 
 
   // Notification Handling (useCallback để tối ưu)
   const addNotification = useCallback((message: string, type: 'success' | 'error') => {
-    const id = Date.now();
+    const id = generateUniqueId();
     setNotifications(prev => {
       // Giới hạn số lượng notification hiển thị cùng lúc (ví dụ: 3)
       const newNotifications = [...prev, { message, type, id }];
@@ -106,6 +108,14 @@ export default function OrderForm({ onSimulationStartSuccess, onOrderSuccess }: 
       setFormData(prev => ({ ...prev, side: 'sell' }));
     }
   }, [formData.type, formData.side]);
+
+  // Update symbol when selectedCoin changes
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      symbol: `${selectedCoin}/USDT`
+    }));
+  }, [selectedCoin]);
 
 
   const submitOrder = async (e: FormEvent) => {
@@ -291,27 +301,27 @@ export default function OrderForm({ onSimulationStartSuccess, onOrderSuccess }: 
   const formattedActivationPrice = formatCurrency(activationPriceNumForDisplay > 0 ? activationPriceNumForDisplay : null, quoteCurrency, 2);
 
   return (
-    <div className="bg-white dark:bg-gray-800 p-5 md:p-6 rounded-lg shadow-md mb-6 border border-gray-200 dark:border-gray-700 relative">
+    <div className="space-y-6">
       {/* Notifications */}
       <div className="fixed top-4 right-4 z-50 w-full max-w-xs space-y-2">
         {notifications.map((notification) => (
           <div
             key={notification.id}
-            className={`relative flex items-start p-3 rounded-md shadow-lg text-sm ${notification.type === 'success'
-              ? 'bg-green-50 dark:bg-green-900/40 border border-green-200 dark:border-green-700/50 text-green-800 dark:text-green-200'
-              : 'bg-red-50 dark:bg-red-900/40 border border-red-200 dark:border-red-700/50 text-red-800 dark:text-red-200'
+            className={`relative vscode-card flex items-start p-3 text-sm ${notification.type === 'success'
+              ? 'border-[var(--success)] bg-[var(--success)] bg-opacity-10'
+              : 'border-[var(--error)] bg-[var(--error)] bg-opacity-10'
               }`}
           >
             {notification.type === 'success' ? (
-              <CheckCircleIcon className="h-5 w-5 mr-2 flex-shrink-0 text-green-500" aria-hidden="true" />
+              <CheckCircleIcon className="h-5 w-5 mr-2 flex-shrink-0 text-[var(--success)]" aria-hidden="true" />
             ) : (
-              <ExclamationCircleIcon className="h-5 w-5 mr-2 flex-shrink-0 text-red-500" aria-hidden="true" />
+              <ExclamationCircleIcon className="h-5 w-5 mr-2 flex-shrink-0 text-[var(--error)]" aria-hidden="true" />
             )}
-            <span className="flex-1">{notification.message}</span>
+            <span className="flex-1 text-[var(--foreground)]">{notification.message}</span>
             <button
               onClick={() => removeNotification(notification.id)}
-              className="ml-2 p-0.5 rounded-full text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-gray-500"
-              aria-label="Đóng thông báo"
+              className="ml-2 p-0.5 rounded-full vscode-button-secondary"
+              aria-label="Close notification"
             >
               <XCircleIcon className="h-4 w-4" />
             </button>
@@ -319,16 +329,12 @@ export default function OrderForm({ onSimulationStartSuccess, onOrderSuccess }: 
         ))}
       </div>
 
-      {/* Header */}
-      <h2 className="text-lg md:text-xl font-semibold text-gray-800 dark:text-gray-100 mb-5 flex items-center">
-        <PencilSquareIcon className="w-5 h-5 md:w-6 md:h-6 mr-2 text-blue-600 dark:text-blue-400" />
-        Đặt lệnh giao dịch
-      </h2>
-
       <form onSubmit={submitOrder} className="space-y-4">
         {/* Symbol */}
         <div>
-          <label htmlFor="symbol" className={labelBaseClasses}>Symbol:</label>
+          <label htmlFor="symbol" className="block text-sm font-medium text-[var(--foreground)] mb-2">
+            Trading Pair:
+          </label>
           <input
             type="text"
             id="symbol"
@@ -336,8 +342,8 @@ export default function OrderForm({ onSimulationStartSuccess, onOrderSuccess }: 
             value={formData.symbol}
             onChange={handleInputChange}
             required
-            className={inputBaseClasses}
-            placeholder="Ví dụ: BTC/USDT"
+            className="vscode-input w-full"
+            placeholder="e.g., BTC/USDT"
           />
         </div>
 
@@ -528,23 +534,21 @@ export default function OrderForm({ onSimulationStartSuccess, onOrderSuccess }: 
         <button
           type="submit"
           disabled={loading}
-          className={`w-full flex justify-center items-center px-4 py-2.5 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors duration-150
-                        ${formData.side === 'buy' && formData.type !== 'trailing-stop'
-              ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
-              : formData.side === 'sell' // Bao gồm cả trailing stop (vì nó là sell)
-                ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
-                : 'bg-gray-600' // Fallback
-            }
-                        ${loading ? 'opacity-70 cursor-wait' : 'hover:opacity-90'}
-                    `}
+          className={`vscode-button w-full justify-center text-base font-medium py-3 ${
+            formData.side === 'buy' && formData.type !== 'trailing-stop'
+              ? 'bg-[var(--success)] hover:bg-[var(--success)] hover:opacity-90'
+              : formData.side === 'sell'
+                ? 'bg-[var(--error)] hover:bg-[var(--error)] hover:opacity-90'
+                : 'bg-[var(--accent)]'
+          } ${loading ? 'opacity-70 cursor-wait' : ''}`}
         >
           {loading && <ArrowPathIcon className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" />}
           <span>
             {loading
-              ? 'Đang xử lý...'
+              ? 'Processing...'
               : formData.type === 'trailing-stop'
-                ? `Bắt đầu Trailing Stop ${formData.trailingPercent}%`
-                : `${formData.side === 'buy' ? 'Mua' : 'Bán'} ${formData.symbol.split('/')[0]}`}
+                ? `Start Trailing Stop ${formData.trailingPercent}%`
+                : `${formData.side === 'buy' ? 'Buy' : 'Sell'} ${formData.symbol.split('/')[0]}`}
           </span>
         </button>
       </form>

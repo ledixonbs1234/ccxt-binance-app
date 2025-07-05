@@ -3,8 +3,9 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import ccxt, { Exchange, Ticker, Order } from 'ccxt';
 import { NextResponse } from 'next/server';
 import { activeTrailingStops, updateTrailingStopState, removeTrailingStopState, TrailingStopState } from '@/lib/trailingStopState'; // Sử dụng alias @
-const REMOVAL_DELAY = 20000; // Xóa state khỏi bộ nhớ sau 20 giây kể từ khi trigger
-
+import { generateUniqueStringId } from '@/lib/utils';
+const CHECK_INTERVAL_MS = 1500; // Giảm xuống 1.5 giây (điều chỉnh nếu cần)
+const REMOVAL_DELAY = 20000;
 // Lưu ý: Lưu state trong bộ nhớ như thế này KHÔNG phù hợp cho production
 // vì nó sẽ mất khi server khởi động lại hoặc scale.
 // Cần dùng DB hoặc Cache.
@@ -31,7 +32,7 @@ export async function POST(req: Request) { // Đổi tên thành POST, nhận Re
             options: { adjustForTimeDifference: true }
         });
         exchange.setSandboxMode(true);
-        const stateKey = `${symbol}-${Date.now()}`;
+        const stateKey = `${symbol}-${generateUniqueStringId()}`;
         const needsActivation = useActivationPrice && activationPrice > 0;
         // --- Khởi tạo State bằng hàm update ---
         const initialState: TrailingStopState = {
@@ -149,10 +150,17 @@ export async function POST(req: Request) { // Đổi tên thành POST, nhận Re
                  console.error(`[${stateKey}] Error in interval:`, fetchError.message || fetchError);
                  // Xử lý lỗi fetch (có thể dừng nếu lỗi nghiêm trọng)
             }
-        }, 10000); // Interval
+        }, CHECK_INTERVAL_MS); // Interval
 
         // *** Cập nhật intervalId vào state trong Map ***
-        updateTrailingStopState(stateKey, { ...initialState, checkInterval: intervalId });
+        // Cập nhật phần xử lý để lưu trạng thái vào Supabase
+        // Thay đổi chính là sử dụng await cho các hàm updateTrailingStopState và removeTrailingStopState
+        
+        // Ví dụ:
+        await updateTrailingStopState(stateKey, initialState);
+        
+        // Và:
+        await updateTrailingStopState(stateKey, { ...initialState, checkInterval: intervalId });
 
         // Phản hồi thành công cho client biết việc theo dõi đã bắt đầu
         // Sử dụng NextResponse.json

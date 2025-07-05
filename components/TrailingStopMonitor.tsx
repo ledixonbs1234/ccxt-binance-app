@@ -1,9 +1,11 @@
 // File: components/TrailingStopMonitor.tsx
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react'; // Thêm useRef
-import { AdjustmentsHorizontalIcon, ArrowPathIcon, ExclamationTriangleIcon, CheckCircleIcon, InformationCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
-import { XCircleIcon as XCircleSolid } from '@heroicons/react/20/solid'; // Cho notification
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { AdjustmentsHorizontalIcon, ArrowPathIcon, ExclamationTriangleIcon, CheckCircleIcon, InformationCircleIcon, ClockIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { XCircleIcon as XCircleSolid } from '@heroicons/react/20/solid';
+import { generateUniqueId } from '../lib/utils';
+import VSCodeCard from './VSCodeCard';
 
 // Cập nhật interface
 interface ActiveSimulation {
@@ -84,20 +86,25 @@ export default function TrailingStopMonitor({ onSimulationTriggered }: TrailingS
     const [error, setError] = useState<string | null>(null);
     const [notifications, setNotifications] = useState<NotificationItem[]>([]);
     const prevSimulationsRef = useRef<Map<string, ActiveSimulation>>(new Map());
+    // Thêm state để theo dõi ID đang bị xóa
+    const [deletingKey, setDeletingKey] = useState<string | null>(null);
+    // Thêm notification
+    const addNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
+        const id = generateUniqueId();
+        setNotifications(prev => [...prev, { id, message, type }]);
 
-    // --- Notification Handling ---
-    const addNotification = useCallback((message: string, type: NotificationItem['type']) => {
-        const id = Date.now();
-        setNotifications(prev => [...prev, { message, type, id }].slice(-3));
-        setTimeout(() => removeNotification(id), 6000); // Tăng thời gian hiển thị
+        // Tự động xóa thông báo sau 5 giây
+        setTimeout(() => {
+            setNotifications(prev => prev.filter(n => n.id !== id));
+        }, 5000);
     }, []);
-    const removeNotification = useCallback((id: number) => {
-        setNotifications(prev => prev.filter(n => n.id !== id));
-    }, []);
-
-
+ // Hàm để xóa notification
+ const removeNotification = useCallback((id: number) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+}, []);
+    // Cập nhật phần fetchActiveSimulations để xử lý dữ liệu từ Supabase
     const fetchActiveSimulations = useCallback(async (showLoading = false) => {
-        if (showLoading) setIsLoading(true); // Chỉ hiện loading khi refresh thủ công
+        if (showLoading) setIsLoading(true);
         setError(null);
         try {
             const res = await fetch('/api/active-simulations');
@@ -106,44 +113,57 @@ export default function TrailingStopMonitor({ onSimulationTriggered }: TrailingS
                 throw new Error(errData.message || 'Lỗi khi lấy danh sách Trailing Stop');
             }
 
-
             const data: ActiveSimulation[] = await res.json();
-            const currentSimulationsMap = new Map<string, ActiveSimulation>(data.map(sim => [sim.stateKey, sim]));
-            const prevSimulationsMap = prevSimulationsRef.current;
+            console.log('[Monitor] Fetched simulations:', data); // Debug log
 
+            // Update UI with the latest data
+            const currentSimulationsMap = new Map<string, ActiveSimulation>(
+                data.map(sim => [sim.stateKey, sim])
+            );
+
+            // Compare with previous simulations and update notifications
             currentSimulationsMap.forEach((currentSim, key) => {
-                const prevSim = prevSimulationsMap.get(key);
-
-                // *** Phát hiện TRIGGER THÀNH CÔNG và gọi callback ***
-                if (currentSim.status === 'triggered' && currentSim.sellOrderId && // Phải có sellOrderId
-                    (!prevSim || prevSim.status === 'active')) {
-                    addNotification(`✅ Trailing Stop ${currentSim.symbol} kích hoạt bán!`, 'success');
-                    // Gọi callback để báo cho parent component (page.tsx)
-                    onSimulationTriggered();
-                }
-                // Phát hiện lỗi
-                else if (currentSim.status === 'error' && (!prevSim || prevSim.status === 'active')) {
-                    addNotification(`❌ Lỗi Trailing Stop ${currentSim.symbol}: ${currentSim.errorMessage || 'Lỗi không xác định'}`, 'error');
-                    // Không gọi onSimulationTriggered khi có lỗi
+                const prevSim = prevSimulationsRef.current.get(key);
+                if (!prevSim || currentSim.highestPrice !== prevSim.highestPrice) {
+                    console.log(`[Monitor] Updated highest price for ${currentSim.symbol}: ${currentSim.highestPrice}`);
                 }
             });
 
             setSimulations(data);
             prevSimulationsRef.current = currentSimulationsMap;
         } catch (err: any) {
-            console.error("Error fetching simulations:", err);
-            setError(err.message);
-            // Giữ lại state cũ khi có lỗi fetch định kỳ
+            console.error("[Monitor] Error fetching simulations:", err);
+            
+            // Set user-friendly error message based on error type
+            let errorMessage = 'Không thể tải dữ liệu trailing stop';
+            if (err.message.includes('fetch failed')) {
+                errorMessage = 'Lỗi kết nối - Ứng dụng hoạt động ở chế độ offline';
+            } else if (err.message.includes('HTTP 500')) {
+                errorMessage = 'Lỗi server - Vui lòng thử lại sau';
+            }
+            
+            setError(errorMessage);
+            
+            // Don't clear existing simulations on error, just show error message
             // setSimulations([]);
         } finally {
-            setIsLoading(false); // Luôn tắt loading sau khi fetch xong
+            setIsLoading(false);
         }
-    }, [addNotification, onSimulationTriggered]);
+    }, []);
 
+    // Ensure the interval is set up properly
     useEffect(() => {
-        fetchActiveSimulations(true); // Fetch lần đầu
-        const intervalId = setInterval(() => fetchActiveSimulations(false), 7000); // Fetch mỗi 7 giây
-        return () => clearInterval(intervalId);
+        console.log('[Monitor] Setting up fetch interval');
+        fetchActiveSimulations(true); // Initial fetch with loading
+        const intervalId = setInterval(() => {
+            console.log('[Monitor] Fetching updates...');
+            fetchActiveSimulations(false);
+        }, 7000);
+
+        return () => {
+            console.log('[Monitor] Cleaning up interval');
+            clearInterval(intervalId);
+        };
     }, [fetchActiveSimulations]);
 
     // Tính giá stop loss hiện tại
@@ -151,145 +171,201 @@ export default function TrailingStopMonitor({ onSimulationTriggered }: TrailingS
         return highestPrice * (1 - trailingPercent / 100);
     };
 
+    // --- Hàm Xóa Simulation ---
+    const cancelSimulation = useCallback(async (stateKey: string, symbol: string) => {
+        if (deletingKey) return; // Ngăn chặn xóa nhiều lần cùng lúc
+
+        setDeletingKey(stateKey); // Đánh dấu đang xóa
+        addNotification(`Đang hủy theo dõi ${symbol}...`, 'info');
+
+        try {
+            const res = await fetch('/api/cancel-simulation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ stateKey }),
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.message || `Lỗi ${res.status} khi hủy`);
+            }
+
+            addNotification(`Đã hủy theo dõi ${symbol} thành công.`, 'success');
+            // Xóa simulation khỏi state cục bộ ngay lập tức để UI cập nhật nhanh
+            setSimulations(prev => prev.filter(sim => sim.stateKey !== stateKey));
+        } catch (err: any) {
+            console.error(`Error cancelling simulation ${stateKey}:`, err);
+            addNotification(`Lỗi hủy theo dõi ${symbol}: ${err.message}`, 'error');
+        } finally {
+            setDeletingKey(null); // Bỏ đánh dấu đang xóa
+        }
+    }, [addNotification, deletingKey]); // Phụ thuộc addNotification và deletingKey
+
+
     return (
-        <div className="bg-white dark:bg-gray-800 p-5 md:p-6 rounded-lg shadow-md mb-6 border border-gray-200 dark:border-gray-700 relative">
-            {/* Khu vực hiển thị notification riêng cho component này */}
-            <div className="absolute top-0 right-0 p-4 space-y-2 max-w-xs z-10">
+        <div className="space-y-4">
+            {/* Notifications */}
+            <div className="fixed top-4 right-4 z-50 max-w-xs space-y-2">
                 {notifications.map((n) => (
-                    <div key={n.id} className={`relative flex items-start p-3 rounded-md shadow-lg text-sm ${n.type === 'success' ? 'bg-green-50 dark:bg-green-900/40 border border-green-200 dark:border-green-700/50 text-green-800 dark:text-green-200' :
-                        n.type === 'error' ? 'bg-red-50 dark:bg-red-900/40 border border-red-200 dark:border-red-700/50 text-red-800 dark:text-red-200' :
-                            'bg-blue-50 dark:bg-blue-900/40 border border-blue-200 dark:border-blue-800/50 text-blue-800 dark:text-blue-300' // info
-                        }`}>
-                        {n.type === 'success' ? <CheckCircleIcon className="h-5 w-5 mr-2 flex-shrink-0 text-green-500" /> :
-                            n.type === 'error' ? <ExclamationTriangleIcon className="h-5 w-5 mr-2 flex-shrink-0 text-red-500" /> :
-                                <InformationCircleIcon className="h-5 w-5 mr-2 flex-shrink-0 text-blue-500" />}
+                    <div key={n.id} className={`notification ${
+                        n.type === 'success' ? 'notification-success' :
+                        n.type === 'error' ? 'notification-error' :
+                        'notification-info'
+                    }`}>
+                        {n.type === 'success' ? <CheckCircleIcon className="h-5 w-5 mr-2 flex-shrink-0" /> :
+                         n.type === 'error' ? <ExclamationTriangleIcon className="h-5 w-5 mr-2 flex-shrink-0" /> :
+                         <InformationCircleIcon className="h-5 w-5 mr-2 flex-shrink-0" />}
                         <span className="flex-1">{n.message}</span>
-                        <button onClick={() => removeNotification(n.id)} className="ml-2 p-0.5 rounded-full text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-gray-500" aria-label="Đóng">
+                        <button 
+                            onClick={() => removeNotification(n.id)} 
+                            className="ml-2 p-0.5 rounded-full text-muted hover:text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+                            aria-label="Đóng"
+                        >
                             <XCircleSolid className="h-4 w-4" />
                         </button>
                     </div>
                 ))}
             </div>
-            {/* Header */}
-            <div className="flex flex-wrap justify-between items-center gap-3 mb-5">
-                <h2 className="text-lg md:text-xl font-semibold text-gray-800 dark:text-gray-100 flex items-center">
-                    <AdjustmentsHorizontalIcon className="w-5 h-5 md:w-6 md:h-6 mr-2 text-purple-600 dark:text-purple-400" />
-                    Trailing Stop Đang Hoạt Động
-                </h2>
-                <button
-                    onClick={() => fetchActiveSimulations(true)} // Refresh thủ công
-                    disabled={isLoading}
-                    className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 shadow-sm text-xs font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 disabled:opacity-50"
-                >
-                    <ArrowPathIcon className={`w-4 h-4 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
-                    Làm mới
-                </button>
-            </div>
 
-            {/* Loading State */}
-            {isLoading && simulations.length === 0 && ( // Chỉ hiện skeleton khi chưa có data
-                <div className="space-y-2 animate-pulse mt-4">
-                    {[...Array(2)].map((_, i) => (
-                        <div key={i} className="h-10 bg-gray-200 dark:bg-gray-700 rounded-md"></div>
-                    ))}
+            <VSCodeCard>
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold flex items-center gap-2">
+                        <AdjustmentsHorizontalIcon className="w-5 h-5 text-accent" />
+                        Trailing Stop Đang Hoạt Động
+                    </h2>
+                    <button
+                        onClick={() => fetchActiveSimulations(true)}
+                        disabled={isLoading}
+                        className="btn btn-secondary btn-sm"
+                    >
+                        <ArrowPathIcon className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                        Làm mới
+                    </button>
                 </div>
-            )}
 
-            {/* Error State */}
-            {!isLoading && error && (
-                <div className="mt-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/30 text-red-700 dark:text-red-300 px-4 py-3 rounded-md flex items-center gap-3 text-sm">
-                    <ExclamationTriangleIcon className="w-5 h-5" />
-                    <div><span className="font-medium">Lỗi tải danh sách:</span> {error}</div>
-                </div>
-            )}
+                {/* Loading State */}
+                {isLoading && simulations.length === 0 && (
+                    <div className="space-y-2 animate-pulse">
+                        {[...Array(2)].map((_, i) => (
+                            <div key={i} className="h-10 bg-panel rounded-md"></div>
+                        ))}
+                    </div>
+                )}
 
-            {/* Simulation Table */}
-            {!isLoading && !error && simulations.length > 0 && (
-                <div className="overflow-x-auto -mx-5 md:-mx-6">
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead className="bg-gray-50 dark:bg-gray-700/50">
-                            <tr>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Symbol</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Số lượng</th>
-                                {/* Gộp Giá vào/Kích hoạt */}
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Giá vào/Kích hoạt</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Trailing %</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Giá cao nhất</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Giá Stop / Trạng thái</th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                            {simulations.map((sim) => {
-                                const isPending = sim.status === 'pending_activation';
-                                const isActive = sim.status === 'active';
-                                const isTriggered = sim.status === 'triggered';
-                                const isError = sim.status === 'error';
-                                const quoteCurrency = sim.symbol.split('/')[1]?.toUpperCase() || 'USD';
+                {/* Error State */}
+                {!isLoading && error && (
+                    <div className="panel-error">
+                        <ExclamationTriangleIcon className="w-5 h-5 mr-2 text-error" />
+                        <div>
+                            <span className="font-medium">Lỗi tải danh sách:</span> {error}
+                        </div>
+                    </div>
+                )}
 
-                                return (
-                                    <tr key={sim.stateKey}
-                                        // Làm mờ nhẹ nếu chờ, mờ hẳn nếu xong/lỗi
-                                        className={`text-sm transition-opacity duration-500 ${isTriggered || isError ? 'opacity-50' : ''} ${isPending ? 'opacity-80' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}
-                                    >
-                                        <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900 dark:text-gray-100">{sim.symbol}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300">{formatNum(sim.quantity)}</td>
-                                        {/* Hiển thị Giá vào và Giá kích hoạt nếu có */}
-                                        <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300">
-                                            {formatCurrency(sim.entryPrice, quoteCurrency, 2)}
-                                            {sim.activationPrice && (
-                                                <span className="block text-xs text-blue-600 dark:text-blue-400">
-                                                    (K.hoạt: {formatCurrency(sim.activationPrice, quoteCurrency, 2)})
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300">{formatNum(sim.trailingPercent, 1)}%</td>
-                                        {/* Giá cao nhất chỉ hiển thị khi active hoặc đã trigger/lỗi */}
-                                        <td className={`px-4 py-3 whitespace-nowrap font-semibold ${isPending ? 'text-gray-400 dark:text-gray-500' : 'text-blue-600 dark:text-blue-400'}`}>
-                                            {isPending ? '---' : formatCurrency(sim.highestPrice, quoteCurrency, 2)}
-                                        </td>
-                                        <td className="px-4 py-3 whitespace-nowrap">
-                                            {/* Hiển thị trạng thái */}
-                                            {isPending && (
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                                                    <ClockIcon className="w-3 h-3 mr-1" />
-                                                    Chờ kích hoạt
-                                                </span>
-                                            )}
-                                            {isActive && (
-                                                <span className="font-semibold text-red-600 dark:text-red-400">
-                                                    {formatCurrency(calculateCurrentStopPrice(sim.highestPrice, sim.trailingPercent), quoteCurrency, 2)}
-                                                </span>
-                                            )}
+                {/* Simulation Table */}
+                {!isLoading && !error && simulations.length > 0 && (
+                    <div className="table-container">
+                        <table className="table">
+                            <thead>
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Số lượng</th>
+                                    <th>Giá vào/Kích hoạt</th>
+                                    <th>Trailing %</th>
+                                    <th>Giá cao nhất</th>
+                                    <th>Giá Stop / Trạng thái</th>
+                                    <th className="text-right">Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {simulations.map((sim) => {
+                                    const isPending = sim.status === 'pending_activation';
+                                    const isActive = sim.status === 'active';
+                                    const isTriggered = sim.status === 'triggered';
+                                    const isError = sim.status === 'error';
+                                    const isBeingDeleted = deletingKey === sim.stateKey;
+                                    const quoteCurrency = sim.symbol.split('/')[1]?.toUpperCase() || 'USD';
 
-                                            {isTriggered && (
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300" title={`Lệnh bán ID: ${sim.sellOrderId}`}>
-                                                    <CheckCircleIcon className="w-3 h-3 mr-1" />
-                                                    Đã bán @ {formatNum(sim.triggerPrice, 4)}
-                                                    {/* Thêm timestamp nếu muốn: {sim.triggeredAt ? `(${new Date(sim.triggeredAt).toLocaleTimeString()})` : ''} */}
-                                                </span>
-                                            )}
-                                            {isError && (
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300" title={sim.errorMessage}>
-                                                    <ExclamationTriangleIcon className="w-3 h-3 mr-1" />
-                                                    Lỗi đặt lệnh
-                                                </span>
-                                            )}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+                                    return (
+                                        <tr key={sim.stateKey} className={`
+                                            ${isTriggered || isError ? 'opacity-50' : ''} 
+                                            ${isPending ? 'opacity-80' : ''} 
+                                            ${isBeingDeleted ? 'opacity-40 bg-warning/10' : ''}
+                                        `}>
+                                            <td className="font-medium">{sim.symbol}</td>
+                                            <td>{formatNum(sim.quantity)}</td>
+                                            <td>
+                                                {formatCurrency(sim.entryPrice, quoteCurrency, 2)}
+                                                {sim.activationPrice && (
+                                                    <span className="block text-xs text-accent">
+                                                        (K.hoạt: {formatCurrency(sim.activationPrice, quoteCurrency, 2)})
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td>{formatNum(sim.trailingPercent, 1)}%</td>
+                                            <td className={`font-semibold ${isPending ? 'text-muted' : 'text-accent'}`}>
+                                                {isPending ? '---' : formatCurrency(sim.highestPrice, quoteCurrency, 2)}
+                                            </td>
+                                            <td>
+                                                {isPending && (
+                                                    <span className="badge badge-muted">
+                                                        <ClockIcon className="w-3 h-3 mr-1" />
+                                                        Chờ kích hoạt
+                                                    </span>
+                                                )}
+                                                {isActive && (
+                                                    <span className="font-semibold text-error">
+                                                        {formatCurrency(calculateCurrentStopPrice(sim.highestPrice, sim.trailingPercent), quoteCurrency, 2)}
+                                                    </span>
+                                                )}
+                                                {isTriggered && (
+                                                    <span className="badge badge-success" title={`Lệnh bán ID: ${sim.sellOrderId}`}>
+                                                        <CheckCircleIcon className="w-3 h-3 mr-1" />
+                                                        Đã bán @ {formatNum(sim.triggerPrice, 4)}
+                                                    </span>
+                                                )}
+                                                {isError && (
+                                                    <span className="badge badge-error" title={sim.errorMessage}>
+                                                        <ExclamationTriangleIcon className="w-3 h-3 mr-1" />
+                                                        Lỗi đặt lệnh
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="text-right">
+                                                {(isActive || isPending) && (
+                                                    <button
+                                                        onClick={() => cancelSimulation(sim.stateKey, sim.symbol)}
+                                                        disabled={isBeingDeleted || !!deletingKey}
+                                                        className={`btn btn-sm ${isBeingDeleted ? 'btn-disabled' : 'btn-error'}`}
+                                                        title="Hủy theo dõi Trailing Stop này"
+                                                    >
+                                                        {isBeingDeleted ? (
+                                                            <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                                                        ) : (
+                                                            <TrashIcon className="h-4 w-4" />
+                                                        )}
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
 
-            {/* Empty State */}
-            {!isLoading && !error && simulations.length === 0 && (
-                <p className="text-center text-sm text-gray-500 dark:text-gray-400 py-6">
-                    Không có lệnh Trailing Stop nào đang hoạt động.
+                {/* Empty State */}
+                {!isLoading && !error && simulations.length === 0 && (
+                    <div className="text-center py-8 text-muted">
+                        Không có lệnh Trailing Stop nào đang hoạt động.
+                    </div>
+                )}
+                
+                <p className="text-xs text-muted mt-3">
+                    * Dữ liệu được làm mới tự động sau mỗi 7 giây.
                 </p>
-            )}
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">* Dữ liệu được làm mới tự động sau mỗi 7 giây.</p>
+            </VSCodeCard>
         </div>
     );
 }

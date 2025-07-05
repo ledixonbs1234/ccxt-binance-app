@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { ChartBarIcon, ArrowPathIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import VSCodeCard from './VSCodeCard';
 
 type Trade = {
   id: string;
@@ -58,51 +60,88 @@ export default function TradeHistory() {
   }, []);
 
   return (
-    <div className="bg-gray-50 p-6 rounded shadow my-6">
-      <h2 className="text-2xl font-semibold text-gray-800 mb-5">Lịch sử giao dịch</h2>
-      {loading && <p className="text-blue-500">Đang tải...</p>}
-      {error && <p className="text-red-500">Lỗi: {error}</p>}
+    <VSCodeCard>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold flex items-center gap-2">
+          <ChartBarIcon className="w-5 h-5 text-accent" />
+          Lịch sử giao dịch
+        </h2>
+        <button
+          onClick={fetchTradeHistory}
+          disabled={loading}
+          className="btn btn-secondary btn-sm"
+        >
+          <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          Làm mới
+        </button>
+      </div>
+
+      {loading && (
+        <div className="space-y-2 animate-pulse">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-10 bg-panel rounded-md"></div>
+          ))}
+        </div>
+      )}
+
+      {error && (
+        <div className="panel-error">
+          <ExclamationTriangleIcon className="w-5 h-5 mr-2 text-error" />
+          <span>Lỗi: {error}</span>
+        </div>
+      )}
+
       {trades.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-center mx-auto">
-            <thead className="bg-gray-200">
+        <div className="table-container">
+          <table className="table">
+            <thead>
               <tr>
-                <th className="py-3 px-4 border">ID</th>
-                <th className="py-3 px-4 border">Thời gian</th>
-                <th className="py-3 px-4 border">Giá mua</th>
-                <th className="py-3 px-4 border">Số lượng</th>
-                <th className="py-3 px-4 border">Giá hiện tại</th>
-                <th className="py-3 px-4 border">% Thay đổi</th>
-                <th className="py-3 px-4 border">Hành động</th>
+                <th>ID</th>
+                <th>Thời gian</th>
+                <th>Giá mua</th>
+                <th>Số lượng</th>
+                <th>Giá hiện tại</th>
+                <th>% Thay đổi</th>
+                <th>Hành động</th>
               </tr>
             </thead>
             <tbody>
-              {trades.map((trade) => (
-                <tr key={trade.id} className="border-b hover:bg-gray-100">
-                  <td className="py-2 px-3">{trade.id}</td>
-                  <td className="py-2 px-3">{new Date(trade.datetime).toLocaleString()}</td>
-                  <td className="py-2 px-3">{trade.price}</td>
-                  <td className="py-2 px-3">{trade.amount}</td>
-                  <td className="py-2 px-3">{trade.currentPrice}</td>
-                  <td className="py-2 px-3">
-                    {(((trade.currentPrice - trade.price) / trade.price) * 100).toFixed(2)}%
-                  </td>
-                  <td className="py-2 px-3">
-                    <button
-                      onClick={() => sellBitcoin(trade)}
-                      className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-                    >
-                      Bán
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {trades.map((trade) => {
+                const priceChange = ((trade.currentPrice - trade.price) / trade.price) * 100;
+                const isProfit = priceChange >= 0;
+                
+                return (
+                  <tr key={trade.id}>
+                    <td>{trade.id}</td>
+                    <td className="text-sm text-muted">{new Date(trade.datetime).toLocaleString()}</td>
+                    <td>{trade.price}</td>
+                    <td>{trade.amount}</td>
+                    <td>{trade.currentPrice}</td>
+                    <td className={isProfit ? 'text-success' : 'text-error'}>
+                      {priceChange.toFixed(2)}%
+                    </td>
+                    <td>
+                      <button
+                        onClick={() => sellBitcoin(trade)}
+                        className="btn btn-sm btn-error"
+                        disabled={loading}
+                      >
+                        Bán
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       ) : (
-        !loading && <p>Không có lịch sử giao dịch nào.</p>
+        !loading && (
+          <div className="text-center py-8 text-muted">
+            Không có lịch sử giao dịch nào.
+          </div>
+        )
       )}
-    </div>
+    </VSCodeCard>
   );
 }
