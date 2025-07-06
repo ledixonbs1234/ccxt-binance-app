@@ -667,3 +667,21 @@ export class EnhancedTrailingStopService {
     console.log('[EnhancedTrailingStopService] API cache cleared');
   }
 }
+
+// Default settings for the service
+const defaultSettings: TrailingStopSettings = {
+  defaultStrategy: 'percentage',
+  defaultTrailingPercent: 2.0,
+  defaultMaxLoss: 5.0,
+  atrPeriod: 14,
+  atrMultiplier: 2.0,
+  volatilityLookback: 20,
+  volatilityMultiplier: 1.5,
+  maxPositions: 10,
+  maxRiskPerPosition: 2.0,
+  updateInterval: 5000,
+  priceChangeThreshold: 0.1
+};
+
+// Export singleton instance
+export const enhancedTrailingStopService = new EnhancedTrailingStopService(defaultSettings);

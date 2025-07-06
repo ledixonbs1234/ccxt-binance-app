@@ -122,7 +122,7 @@ export default function OrderForm({ onSimulationStartSuccess, onOrderSuccess }: 
   // Auto switch side for Trailing Stop
   useEffect(() => {
     if (formData.type === 'trailing-stop' && formData.side !== 'sell') {
-      const newFormData = { ...formData, side: 'sell' };
+      const newFormData = { ...formData, side: 'sell' as const };
       setFormData(newFormData);
       form.setFieldsValue(newFormData);
     }
@@ -373,8 +373,7 @@ export default function OrderForm({ onSimulationStartSuccess, onOrderSuccess }: 
                 message="Tự động chọn Bán cho Trailing Stop."
                 type="warning"
                 showIcon
-                size="small"
-                style={{ marginTop: 8 }}
+                style={{ marginTop: 8, fontSize: '12px' }}
               />
             )}
           </Col>
@@ -462,8 +461,7 @@ export default function OrderForm({ onSimulationStartSuccess, onOrderSuccess }: 
                 }
                 type="info"
                 showIcon
-                size="small"
-                style={{ marginBottom: 16 }}
+                style={{ marginBottom: 16, fontSize: '12px' }}
               />
             )}
 
@@ -540,8 +538,7 @@ export default function OrderForm({ onSimulationStartSuccess, onOrderSuccess }: 
               }
               type="info"
               showIcon
-              size="small"
-              style={{ marginBottom: 16 }}
+              style={{ marginBottom: 16, fontSize: '12px' }}
             />
 
             {/* Info Box */}

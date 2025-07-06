@@ -103,7 +103,7 @@ export default function MarketOverview() {
                         fontFamily: 'monospace',
                         fontSize: 14
                       }}
-                      prefix={<RiseOutlined style={{ color: '#52c41a' }} />}
+                      suffix={<RiseOutlined style={{ color: '#52c41a' }} />}
                     />
                   </Col>
                   <Col span={12}>
@@ -117,7 +117,7 @@ export default function MarketOverview() {
                         fontFamily: 'monospace',
                         fontSize: 14
                       }}
-                      prefix={<FallOutlined style={{ color: '#ff4d4f' }} />}
+                      suffix={<FallOutlined style={{ color: '#ff4d4f' }} />}
                     />
                   </Col>
                 </Row>

@@ -58,7 +58,8 @@ export class TradingApiService {
         return cached.price;
       }
 
-      const response = await fetch(`/api/ticker?symbol=${encodeURIComponent(symbol)}`);
+      const baseUrl = typeof window !== 'undefined' ? '' : 'http://localhost:3000';
+      const response = await fetch(`${baseUrl}/api/ticker?symbol=${encodeURIComponent(symbol)}`);
       
       if (!response.ok) {
         throw new Error(`API ticker error: ${response.status} ${response.statusText}`);
@@ -109,8 +110,9 @@ export class TradingApiService {
    */
   async getCandleData(symbol: string, timeframe: string = '1h', limit: number = 100): Promise<CandleData[]> {
     try {
+      const baseUrl = typeof window !== 'undefined' ? '' : 'http://localhost:3000';
       const response = await fetch(
-        `/api/candles?symbol=${encodeURIComponent(symbol)}&timeframe=${timeframe}&limit=${limit}`
+        `${baseUrl}/api/candles?symbol=${encodeURIComponent(symbol)}&timeframe=${timeframe}&limit=${limit}`
       );
       
       if (!response.ok) {

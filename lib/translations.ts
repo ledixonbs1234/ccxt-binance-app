@@ -101,6 +101,7 @@ export interface Translations {
     close: string;
     buy: string;
     sell: string;
+    side: string;
     amount: string;
     total: string;
     balance: string;
@@ -388,6 +389,7 @@ export const enTranslations: Translations = {
     close: 'Close',
     buy: 'Buy',
     sell: 'Sell',
+    side: 'Side',
     amount: 'Amount',
     total: 'Total',
     balance: 'Balance',
@@ -669,6 +671,7 @@ export const viTranslations: Translations = {
     close: 'Đóng cửa',
     buy: 'Mua',
     sell: 'Bán',
+    side: 'Hướng',
     amount: 'Số lượng',
     total: 'Tổng',
     balance: 'Số dư',
