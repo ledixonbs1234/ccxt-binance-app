@@ -1,10 +1,12 @@
 // File: components/VSCodeLayout.tsx
 'use client';
 
-import { useState } from 'react';
+import { Layout } from 'antd';
 import VSCodeHeader from './VSCodeHeader';
 import VSCodeSidebar from './VSCodeSidebar';
 import VSCodeStatusBar from './VSCodeStatusBar';
+
+const { Content } = Layout;
 
 interface VSCodeLayoutProps {
   children: React.ReactNode;
@@ -12,38 +14,34 @@ interface VSCodeLayoutProps {
   onSectionChange?: (section: string) => void;
 }
 
-export default function VSCodeLayout({ 
-  children, 
+export default function VSCodeLayout({
+  children,
   currentSection = 'dashboard',
-  onSectionChange 
+  onSectionChange
 }: VSCodeLayoutProps) {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
   return (
-    <div className="h-screen flex flex-col bg-[var(--background)] text-[var(--foreground)]">
-      {/* Header */}
+    <Layout style={{ minHeight: '100vh' }}>
       <VSCodeHeader />
-      
-      {/* Main Content Area */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <aside className="flex-shrink-0 border-r border-[var(--border)]">
-          <VSCodeSidebar 
-            currentSection={currentSection}
-            onSectionChange={onSectionChange}
-          />
-        </aside>
-        
-        {/* Main Content */}
-        <main className="flex-1 overflow-auto bg-[var(--background)]">
-          <div className="h-full p-4">
-            {children}
-          </div>
-        </main>
-      </div>
-      
-      {/* Status Bar */}
+      <Layout style={{ marginTop: 64 }}>
+        <VSCodeSidebar
+          currentSection={currentSection}
+          onSectionChange={onSectionChange}
+        />
+        <Layout style={{ marginLeft: 256 }}>
+          <Content style={{
+            padding: '24px',
+            margin: 0,
+            minHeight: 'calc(100vh - 96px)', // Account for header and footer
+            overflow: 'auto',
+            marginBottom: 32 // Account for status bar
+          }}>
+            <div style={{ maxWidth: '100%' }}>
+              {children}
+            </div>
+          </Content>
+        </Layout>
+      </Layout>
       <VSCodeStatusBar />
-    </div>
+    </Layout>
   );
 }

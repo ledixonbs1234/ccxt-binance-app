@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 
 export type CoinSymbol = 'BTC' | 'ETH' | 'PEPE';
+export type Timeframe = '1m' | '5m' | '15m' | '1h' | '4h' | '1d';
 
 export interface CoinData {
   symbol: CoinSymbol;
@@ -30,6 +31,8 @@ interface TradingContextType {
   candleData: Record<CoinSymbol, CandleData[]>;
   isLoading: boolean;
   error: string | null;
+  timeframe: Timeframe;
+  setTimeframe: (timeframe: Timeframe) => void;
 }
 
 const TradingContext = createContext<TradingContextType | undefined>(undefined);
@@ -59,6 +62,7 @@ function useDebounce<T>(value: T, delay: number): T {
 
 export function TradingProvider({ children }: { children: ReactNode }) {
   const [selectedCoin, setSelectedCoin] = useState<CoinSymbol>('BTC');
+  const [timeframe, setTimeframe] = useState<Timeframe>('1m');
   const [rawCoinsData, setRawCoinsData] = useState<Record<CoinSymbol, CoinData>>({
     BTC: { symbol: 'BTC', pair: 'BTC/USDT', price: 0, change24h: 0, volume: 0, high: 0, low: 0 },
     ETH: { symbol: 'ETH', pair: 'ETH/USDT', price: 0, change24h: 0, volume: 0, high: 0, low: 0 },
@@ -79,12 +83,13 @@ export function TradingProvider({ children }: { children: ReactNode }) {
 
   // Fetch ticker data for all coins
   const fetchTickerData = useCallback(async () => {
+    const wasFirstLoad = isFirstLoad.current;
     try {
-      if (isFirstLoad.current) {
+      if (wasFirstLoad) {
         setIsLoading(true);
       }
       setError(null);
-      
+
       const coins = Object.keys(COIN_PAIRS) as CoinSymbol[];
       const promises = coins.map(async (coin) => {
         const response = await fetch(`/api/ticker?symbol=${COIN_PAIRS[coin]}`);
@@ -93,7 +98,7 @@ export function TradingProvider({ children }: { children: ReactNode }) {
       });
 
       const results = await Promise.all(promises);
-      
+
       setRawCoinsData(prevData => {
         const newCoinsData = { ...prevData };
         results.forEach(({ coin, data }) => {
@@ -109,21 +114,21 @@ export function TradingProvider({ children }: { children: ReactNode }) {
         });
         return newCoinsData;
       });
-      
+
       isFirstLoad.current = false;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
-      if (isFirstLoad.current) {
+      if (wasFirstLoad) {
         setIsLoading(false);
       }
     }
   }, []); // Remove dependency to prevent infinite re-renders
 
   // Fetch candle data for a specific coin
-  const fetchCandleData = useCallback(async (coin: CoinSymbol) => {
+  const fetchCandleData = useCallback(async (coin: CoinSymbol, timeframe: Timeframe) => {
     try {
-      const response = await fetch(`/api/candles?symbol=${COIN_PAIRS[coin]}&timeframe=1m&limit=100`);
+      const response = await fetch(`/api/candles?symbol=${COIN_PAIRS[coin]}&timeframe=${timeframe}&limit=100`);
       if (!response.ok) throw new Error(`Failed to fetch ${coin} candle data`);
       
       const data = await response.json();
@@ -154,10 +159,10 @@ export function TradingProvider({ children }: { children: ReactNode }) {
 
   // Update candle data every 20 seconds for selected coin
   useEffect(() => {
-    fetchCandleData(selectedCoin);
-    const interval = setInterval(() => fetchCandleData(selectedCoin), 20000);
+    fetchCandleData(selectedCoin, timeframe);
+    const interval = setInterval(() => fetchCandleData(selectedCoin, timeframe), 20000);
     return () => clearInterval(interval);
-  }, [selectedCoin, fetchCandleData]);
+  }, [selectedCoin, timeframe, fetchCandleData]);
 
   return (
     <TradingContext.Provider
@@ -167,7 +172,9 @@ export function TradingProvider({ children }: { children: ReactNode }) {
         coinsData,
         candleData,
         isLoading,
-        error
+        error,
+        timeframe,
+        setTimeframe
       }}
     >
       {children}

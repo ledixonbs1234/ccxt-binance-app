@@ -1,11 +1,36 @@
 // File: components/OrderForm.tsx
 'use client';
 
-import { useState, ChangeEvent, FormEvent, useEffect, useCallback } from 'react';
-import { PencilSquareIcon, CheckCircleIcon, ExclamationCircleIcon, InformationCircleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
-import { XCircleIcon } from '@heroicons/react/20/solid'; // Icon nhỏ hơn cho nút close notification
+import { useState, FormEvent, useEffect, useCallback } from 'react';
+import {
+  Form,
+  Input,
+  Select,
+  Button,
+  Switch,
+  InputNumber,
+  Space,
+  Typography,
+  notification,
+  Spin,
+  Alert,
+  Row,
+  Col,
+  Divider
+} from 'antd';
+import {
+  LineChartOutlined,
+  CheckCircleOutlined,
+  ExclamationCircleOutlined,
+  InfoCircleOutlined,
+  ReloadOutlined
+} from '@ant-design/icons';
 import { useTrading } from '../contexts/TradingContext';
+import { useTranslations } from '../contexts/LanguageContext';
 import { generateUniqueId } from '../lib/utils';
+
+const { Option } = Select;
+const { Text, Title } = Typography;
 
 type Order = any;
 // Thêm prop type
@@ -40,11 +65,12 @@ const formatNumberInput = (value: string | number): number => {
 
 export default function OrderForm({ onSimulationStartSuccess, onOrderSuccess }: OrderFormProps) {
   const { selectedCoin, coinsData } = useTrading();
+  const t = useTranslations();
+  const [form] = Form.useForm();
   const [orderResult, setOrderResult] = useState<Order | null>(null);
   const [simulationStatus, setSimulationStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [formData, setFormData] = useState<FormData>({
     symbol: 'BTC/USDT',
     type: 'market',
@@ -57,75 +83,68 @@ export default function OrderForm({ onSimulationStartSuccess, onOrderSuccess }: 
   });
 
 
-  // Notification Handling (useCallback để tối ưu)
+  // Notification Handling using Ant Design
+  const [api, contextHolder] = notification.useNotification();
+
   const addNotification = useCallback((message: string, type: 'success' | 'error') => {
-    const id = generateUniqueId();
-    setNotifications(prev => {
-      // Giới hạn số lượng notification hiển thị cùng lúc (ví dụ: 3)
-      const newNotifications = [...prev, { message, type, id }];
-      return newNotifications.slice(-3);
-    });
-    // Tự động xóa sau 5 giây
-    setTimeout(() => {
-      removeNotification(id);
-    }, 5000);
-  }, []);
-
-  const removeNotification = useCallback((id: number) => {
-    setNotifications(prev => prev.filter(notification => notification.id !== id));
-  }, []);
-
-  // Input Change Handling (Xử lý thêm cho checkbox)
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type, checked } = e.target as HTMLInputElement;
-
-    // Chỉ kiểm tra ký tự số, dấu chấm, và đảm bảo chỉ có một dấu chấm
-    const isValidNumberInput = (val: string) => {
-      if (val === '') return true; // Cho phép rỗng
-      // Regex: Cho phép số nguyên hoặc số thập phân (có thể bắt đầu bằng 0.)
-      return /^(0|[1-9]\d*)(\.\d*)?$/.test(val) || /^0\.$/.test(val);
+    if (type === 'success') {
+      api.success({
+        message: 'Thành công',
+        description: message,
+        placement: 'topRight',
+        duration: 5,
+      });
+    } else {
+      api.error({
+        message: 'Lỗi',
+        description: message,
+        placement: 'topRight',
+        duration: 5,
+      });
     }
+  }, [api]);
 
-    setFormData(prev => {
-      let newValue = value;
-      // Chỉ cho phép nhập số hợp lệ vào các trường number
-      if (['amount', 'price', 'trailingPercent', 'activationPrice'].includes(name)) {
-        if (!isValidNumberInput(value)) {
-          newValue = prev[name as keyof FormData] as string; // Giữ giá trị cũ nếu nhập không hợp lệ
-        }
-      }
+  // Form value change handling
+  const handleFormChange = (changedValues: any, allValues: any) => {
+    setFormData(prev => ({
+      ...prev,
+      ...allValues
+    }));
+  };
 
-      return {
-        ...prev,
-        [name]: type === 'checkbox' ? checked : newValue,
-      }
-    });
+  // Number input validation
+  const isValidNumberInput = (val: string) => {
+    if (val === '') return true; // Cho phép rỗng
+    // Regex: Cho phép số nguyên hoặc số thập phân (có thể bắt đầu bằng 0.)
+    return /^(0|[1-9]\d*)(\.\d*)?$/.test(val) || /^0\.$/.test(val);
   };
 
   // Auto switch side for Trailing Stop
   useEffect(() => {
     if (formData.type === 'trailing-stop' && formData.side !== 'sell') {
-      setFormData(prev => ({ ...prev, side: 'sell' }));
+      const newFormData = { ...formData, side: 'sell' };
+      setFormData(newFormData);
+      form.setFieldsValue(newFormData);
     }
-  }, [formData.type, formData.side]);
+  }, [formData.type, formData.side, form]);
 
   // Update symbol when selectedCoin changes
   useEffect(() => {
-    setFormData(prev => ({
-      ...prev,
+    const newFormData = {
+      ...formData,
       symbol: `${selectedCoin}/USDT`
-    }));
-  }, [selectedCoin]);
+    };
+    setFormData(newFormData);
+    form.setFieldsValue(newFormData);
+  }, [selectedCoin, form]);
 
-
-  const submitOrder = async (e: FormEvent) => {
-    e.preventDefault();
+  const submitOrder = async (values: any) => {
     if (loading) return;
     // *** PARSE GIÁ TRỊ TRƯỚC KHI GỬI API ***
-    const amountNum = parseFloat(formData.amount) || 0;
-    const priceNum = parseFloat(formData.price) || 0;
-    const trailingPercentNum = parseFloat(formData.trailingPercent) || 0;
-    const activationPriceNum = parseFloat(formData.activationPrice) || 0;
+    const amountNum = parseFloat(values.amount) || 0;
+    const priceNum = parseFloat(values.price) || 0;
+    const trailingPercentNum = parseFloat(values.trailingPercent) || 0;
+    const activationPriceNum = parseFloat(values.activationPrice) || 0;
 
     setLoading(true);
     setError(null);
@@ -133,47 +152,47 @@ export default function OrderForm({ onSimulationStartSuccess, onOrderSuccess }: 
     setSimulationStatus(null);
 
     // Xác định endpoint và payload cơ bản
-    const isTrailingStop = formData.type === 'trailing-stop';
+    const isTrailingStop = values.type === 'trailing-stop';
     const apiEndpoint = isTrailingStop ? '/api/simulate-trailing-stop' : '/api/order';
     let payload: any = {}; // Sử dụng any để linh hoạt hoặc tạo type cụ thể hơn
     let successMessagePrefix = '';
 
     try {
       // --- Validate Inputs ---
-      if (!formData.symbol) throw new Error('Vui lòng nhập Symbol.');
+      if (!values.symbol) throw new Error('Vui lòng nhập Symbol.');
       if (amountNum <= 0) throw new Error('Số lượng phải lớn hơn 0.');
 
       // --- Logic riêng cho từng loại lệnh ---
       if (isTrailingStop) {
         // Validate trailing stop với giá trị number
-        if (formData.side === 'buy') throw new Error('Trailing Stop chỉ hỗ trợ lệnh Bán (Stop Loss).');
+        if (values.side === 'buy') throw new Error('Trailing Stop chỉ hỗ trợ lệnh Bán (Stop Loss).');
         // Sử dụng priceNum (giá tham chiếu đã parse)
         if (priceNum <= 0) throw new Error('Giá tham chiếu ban đầu phải lớn hơn 0.');
         if (trailingPercentNum <= 0 || trailingPercentNum > 10) throw new Error('Trailing Percent phải từ 0.1% đến 10%.');
-        if (formData.useActivationPrice && activationPriceNum <= 0) {
+        if (values.useActivationPrice && activationPriceNum <= 0) {
           throw new Error('Giá kích hoạt phải lớn hơn 0.');
         }
         payload = {
-          symbol: formData.symbol,
+          symbol: values.symbol,
           quantity: amountNum, // Dùng giá trị số
           trailingPercent: trailingPercentNum, // Dùng giá trị số
           entryPrice: priceNum, // Dùng giá trị số
-          useActivationPrice: formData.useActivationPrice,
-          activationPrice: formData.useActivationPrice ? activationPriceNum : undefined, // Dùng giá trị số
+          useActivationPrice: values.useActivationPrice,
+          activationPrice: values.useActivationPrice ? activationPriceNum : undefined, // Dùng giá trị số
         };
-        successMessagePrefix = `Bắt đầu theo dõi Trailing Stop Loss ${formData.trailingPercent}%`;
-        if (formData.useActivationPrice) {
-          successMessagePrefix += ` (kích hoạt tại ${formData.activationPrice})`;
+        successMessagePrefix = `Bắt đầu theo dõi Trailing Stop Loss ${values.trailingPercent}%`;
+        if (values.useActivationPrice) {
+          successMessagePrefix += ` (kích hoạt tại ${values.activationPrice})`;
         }
         // --- API Call ***CHỈ*** cho Trailing Stop ---
-        console.log(`[${formData.symbol}] Sending request to ${apiEndpoint}`); // Log trước khi fetch
+        console.log(`[${values.symbol}] Sending request to ${apiEndpoint}`); // Log trước khi fetch
         const res = await fetch(apiEndpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
         const data = await res.json();
-        console.log(`[${formData.symbol}] Received response from ${apiEndpoint}`, data); // Log kết quả
+        console.log(`[${values.symbol}] Received response from ${apiEndpoint}`, data); // Log kết quả
 
         if (!res.ok) {
           throw new Error(data.message || data.error || `Lỗi ${res.status} từ API`);
@@ -182,32 +201,32 @@ export default function OrderForm({ onSimulationStartSuccess, onOrderSuccess }: 
         // Xử lý thành công cho Trailing Stop
         onSimulationStartSuccess(); // Gọi callback
         setSimulationStatus(data.message || 'Yêu cầu đã được gửi.');
-        const successMessage = `${successMessagePrefix} cho ${formData.amount} ${formData.symbol.split('/')[0]}.`;
+        const successMessage = `${successMessagePrefix} cho ${values.amount} ${values.symbol.split('/')[0]}.`;
         addNotification(successMessage, 'success');
 
       } else { // Market or Limit
 
         // Chuẩn bị payload và thông báo
         payload = {
-          symbol: formData.symbol,
-          type: formData.type,
-          side: formData.side,
+          symbol: values.symbol,
+          type: values.type,
+          side: values.side,
           amount: amountNum, // Dùng giá trị số
-          price: formData.type === 'limit' ? priceNum : undefined, // Dùng giá trị số
+          price: values.type === 'limit' ? priceNum : undefined, // Dùng giá trị số
         };
-        const actionType = formData.side === 'buy' ? 'Mua' : 'Bán';
-        const orderType = formData.type;
+        const actionType = values.side === 'buy' ? 'Mua' : 'Bán';
+        const orderType = values.type;
         successMessagePrefix = `${actionType} thành công (${orderType})`;
 
         // --- API Call ***CHỈ*** cho Market/Limit ---
-        console.log(`[${formData.symbol}] Sending request to ${apiEndpoint}`); // Log trước khi fetch
+        console.log(`[${values.symbol}] Sending request to ${apiEndpoint}`); // Log trước khi fetch
         const res = await fetch(apiEndpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
         const data = await res.json();
-        console.log(`[${formData.symbol}] Received response from ${apiEndpoint}`, data); // Log kết quả
+        console.log(`[${values.symbol}] Received response from ${apiEndpoint}`, data); // Log kết quả
 
         if (!res.ok) {
           throw new Error(data.message || data.error || `Lỗi ${res.status} từ API`);
@@ -215,7 +234,7 @@ export default function OrderForm({ onSimulationStartSuccess, onOrderSuccess }: 
 
         // Xử lý thành công cho Market/Limit
         setOrderResult(data);
-        const successMessage = `${successMessagePrefix} cho ${formData.amount} ${formData.symbol.split('/')[0]}.`;
+        const successMessage = `${successMessagePrefix} cho ${values.amount} ${values.symbol.split('/')[0]}.`;
         addNotification(successMessage, 'success');
         // Có thể gọi callback refresh khác ở đây nếu cần cập nhật Balance/History ngay
         // *** GỌI CALLBACK KHI MARKET/LIMIT THÀNH CÔNG ***
@@ -224,6 +243,7 @@ export default function OrderForm({ onSimulationStartSuccess, onOrderSuccess }: 
 
       // --- Logic chung sau khi một trong các lệnh gọi API thành công ---
       // Reset Form
+      form.resetFields(['amount', 'price', 'activationPrice']);
       setFormData(prev => ({
         ...prev,
         amount: '', // Reset về chuỗi rỗng
@@ -243,9 +263,7 @@ export default function OrderForm({ onSimulationStartSuccess, onOrderSuccess }: 
   };
 
 
-  // Input/Select shared classes
-  const inputBaseClasses = "block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900 dark:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed";
-  const labelBaseClasses = "block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1";
+
   // Thêm hàm định dạng giá tiền (ví dụ: USDT)
   const formatCurrency = (value: number | undefined | null, currency = 'USD', digits = 2) => {
     if (value === undefined || value === null || isNaN(value)) return '___';
@@ -256,15 +274,12 @@ export default function OrderForm({ onSimulationStartSuccess, onOrderSuccess }: 
       displayCurrency = 'USD';
     }
 
-    // Kiểm tra xem displayCurrency có phải là mã hợp lệ không (tùy chọn, phòng lỗi)
-    // Bạn có thể thêm danh sách các mã hợp lệ nếu muốn kiểm tra kỹ hơn
-    // const validIsoCodes = ['USD', 'EUR', 'JPY', 'VND', ...];
-    // if (!validIsoCodes.includes(displayCurrency)) {
-    //   console.warn(`Invalid currency code for formatting: ${currency}. Falling back to USD.`);
-    //   displayCurrency = 'USD';
-    // }
-
     try {
+      // Xử lý giá nhỏ cho micro-cap cryptocurrencies như PEPE
+      if (value < 0.01) {
+        return `$${value.toFixed(8)}`;
+      }
+
       return value.toLocaleString('en-US', { // Hoặc 'vi-VN' nếu muốn định dạng Việt Nam
         style: 'currency',
         currency: displayCurrency, // Sử dụng mã đã chuẩn hóa
@@ -274,7 +289,10 @@ export default function OrderForm({ onSimulationStartSuccess, onOrderSuccess }: 
     } catch (error) {
       // Nếu vẫn lỗi (ví dụ mã tiền tệ không được hỗ trợ bởi trình duyệt/hệ thống)
       console.error("Error formatting currency:", value, currency, error);
-      // Fallback: Hiển thị số và mã gốc
+      // Fallback: Hiển thị số và mã gốc với xử lý giá nhỏ
+      if (value < 0.01) {
+        return `${value.toFixed(8)} ${currency}`;
+      }
       return `${value.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })} ${currency}`;
     }
   };
@@ -301,283 +319,342 @@ export default function OrderForm({ onSimulationStartSuccess, onOrderSuccess }: 
   const formattedActivationPrice = formatCurrency(activationPriceNumForDisplay > 0 ? activationPriceNumForDisplay : null, quoteCurrency, 2);
 
   return (
-    <div className="space-y-6">
-      {/* Notifications */}
-      <div className="fixed top-4 right-4 z-50 w-full max-w-xs space-y-2">
-        {notifications.map((notification) => (
-          <div
-            key={notification.id}
-            className={`relative vscode-card flex items-start p-3 text-sm ${notification.type === 'success'
-              ? 'border-[var(--success)] bg-[var(--success)] bg-opacity-10'
-              : 'border-[var(--error)] bg-[var(--error)] bg-opacity-10'
-              }`}
-          >
-            {notification.type === 'success' ? (
-              <CheckCircleIcon className="h-5 w-5 mr-2 flex-shrink-0 text-[var(--success)]" aria-hidden="true" />
-            ) : (
-              <ExclamationCircleIcon className="h-5 w-5 mr-2 flex-shrink-0 text-[var(--error)]" aria-hidden="true" />
-            )}
-            <span className="flex-1 text-[var(--foreground)]">{notification.message}</span>
-            <button
-              onClick={() => removeNotification(notification.id)}
-              className="ml-2 p-0.5 rounded-full vscode-button-secondary"
-              aria-label="Close notification"
-            >
-              <XCircleIcon className="h-4 w-4" />
-            </button>
-          </div>
-        ))}
-      </div>
+    <div>
+      {contextHolder}
 
-      <form onSubmit={submitOrder} className="space-y-4">
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={submitOrder}
+        onValuesChange={handleFormChange}
+        initialValues={formData}
+        size="middle"
+      >
         {/* Symbol */}
-        <div>
-          <label htmlFor="symbol" className="block text-sm font-medium text-[var(--foreground)] mb-2">
-            Trading Pair:
-          </label>
-          <input
-            type="text"
-            id="symbol"
-            name="symbol"
-            value={formData.symbol}
-            onChange={handleInputChange}
-            required
-            className="vscode-input w-full"
-            placeholder="e.g., BTC/USDT"
-          />
-        </div>
+        <Form.Item
+          label="Trading Pair"
+          name="symbol"
+          rules={[{ required: true, message: 'Vui lòng nhập Symbol!' }]}
+        >
+          <Input placeholder="e.g., BTC/USDT" />
+        </Form.Item>
 
         {/* Order Type and Side */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="type" className={labelBaseClasses}>Loại lệnh:</label>
-            <select
-              id="type"
+        <Row gutter={16}>
+          <Col xs={24} sm={12}>
+            <Form.Item
+              label={t.trading.orderType}
               name="type"
-              value={formData.type}
-              onChange={handleInputChange}
-              className={inputBaseClasses}
+              rules={[{ required: true, message: 'Vui lòng chọn loại lệnh!' }]}
             >
-              <option value="market">Market</option>
-              <option value="limit">Limit</option>
-              <option value="trailing-stop">Trailing Stop (Loss)</option>
-            </select>
-          </div>
-          <div>
-            <label htmlFor="side" className={labelBaseClasses}>Mua/Bán:</label>
-            <select
-              id="side"
+              <Select placeholder="Chọn loại lệnh">
+                <Option value="market">{t.trading.market}</Option>
+                <Option value="limit">{t.trading.limit}</Option>
+                <Option value="trailing-stop">{t.trading.trailingStop}</Option>
+              </Select>
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={12}>
+            <Form.Item
+              label={t.trading.side}
               name="side"
-              value={formData.side}
-              onChange={handleInputChange}
-              className={inputBaseClasses}
-              disabled={formData.type === 'trailing-stop'} // Disable khi là trailing stop
+              rules={[{ required: true, message: 'Vui lòng chọn hướng giao dịch!' }]}
             >
-              <option value="buy">Mua</option>
-              <option value="sell">Bán</option>
-            </select>
+              <Select
+                placeholder="Chọn hướng"
+                disabled={formData.type === 'trailing-stop'}
+              >
+                <Option value="buy">{t.trading.buy}</Option>
+                <Option value="sell">{t.trading.sell}</Option>
+              </Select>
+            </Form.Item>
             {formData.type === 'trailing-stop' && (
-              <p className="mt-1 text-xs text-orange-600 dark:text-orange-400">
-                Tự động chọn Bán cho Trailing Stop.
-              </p>
+              <Alert
+                message="Tự động chọn Bán cho Trailing Stop."
+                type="warning"
+                showIcon
+                size="small"
+                style={{ marginTop: 8 }}
+              />
             )}
-          </div>
-        </div>
+          </Col>
+        </Row>
 
         {/* Amount */}
-        <div>
-          <label htmlFor="amount" className={labelBaseClasses}>Số lượng ({formData.symbol.split('/')[0]}):</label>
-          <input
-            type="text" // ĐỔI THÀNH TEXT để kiểm soát hoàn toàn
-            inputMode="decimal" // Gợi ý bàn phím số thập phân trên mobile
-            id="amount"
-            name="amount"
-            value={formData.amount} // Hiển thị giá trị chuỗi
-            onChange={handleInputChange}
-            required
-            className={inputBaseClasses}
+        <Form.Item
+          label={`${t.trading.amount} (${formData.symbol.split('/')[0]})`}
+          name="amount"
+          rules={[
+            { required: true, message: 'Vui lòng nhập số lượng!' },
+            {
+              validator: (_, value) => {
+                if (!value || isValidNumberInput(value)) {
+                  return Promise.resolve();
+                }
+                return Promise.reject(new Error('Vui lòng nhập số hợp lệ!'));
+              }
+            }
+          ]}
+        >
+          <Input
             placeholder="0.0000"
+            inputMode="decimal"
           />
-        </div>
+        </Form.Item>
 
-        {/* Price Input (Limit/Reference) (đổi type="text") */}
-        {(formData.type === 'limit' ) && (
-          <div>
-            <label htmlFor="price" className={labelBaseClasses}>
-              {formData.type === 'limit' ? `Giá (${quoteCurrency}):` : `Giá tham chiếu ban đầu (${quoteCurrency}):`}
-            </label>
-            <input
-              type="text"
-              inputMode="decimal"
-              id="price"
-              name="price"
-              value={formData.price}
-              onChange={handleInputChange}
-              required
-              className={inputBaseClasses}
+        {/* Price Input (Limit/Reference) */}
+        {formData.type === 'limit' && (
+          <Form.Item
+            label={`${t.trading.price} (${quoteCurrency})`}
+            name="price"
+            rules={[
+              { required: true, message: 'Vui lòng nhập giá!' },
+              {
+                validator: (_, value) => {
+                  if (!value || isValidNumberInput(value)) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(new Error('Vui lòng nhập số hợp lệ!'));
+                }
+              }
+            ]}
+          >
+            <Input
               placeholder="0.00"
+              inputMode="decimal"
             />
-            {/* Chỉ hiển thị stop loss ước tính cho trailing stop */}
-            
-          </div>
+          </Form.Item>
         )}
 
         {/* Trailing Stop Fields */}
         {formData.type === 'trailing-stop' && (
-          <div className="space-y-4 border-t border-gray-200 dark:border-gray-700 pt-4">
-            {/* Entry Price / Initial Reference Price */}
-            <div>
-              <label htmlFor="ts-price" className={labelBaseClasses}>Giá tham chiếu ban đầu ({formData.symbol.split('/')[1]}):</label>
-              <input
-                type="text" // ĐỔI THÀNH TEXT để kiểm soát hoàn toàn
-                inputMode="decimal" // Gợi ý bàn phím số thập phân trên mobile
-                id="ts-price"
-                name="price" // Vẫn dùng name="price"
-                value={formData.price}
-                onChange={handleInputChange}
-                required
-                className={inputBaseClasses}
-                placeholder="Giá mua vào hoặc giá bắt đầu theo dõi"
-              />
-              {/* Chỉ hiển thị stop loss ước tính cho trailing stop */}
-              {formData.type === 'trailing-stop' && (
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Ước tính Stop Loss ban đầu: <span className="font-semibold text-red-600 dark:text-red-400">{estimatedStopPriceDisplay}</span> ({formData.useActivationPrice ? 'sau kích hoạt' : 'nếu giá giảm ngay'})
-              </p>
-            )}
-              {/* <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Giá cao nhất sẽ được tính từ mức này.
-              </p> */}
-            </div>
-            {/* --- Thêm Checkbox và Input Giá Kích Hoạt --- */}
-            <div className="relative flex items-start">
-              <div className="flex h-6 items-center">
-                <input
-                  id="useActivationPrice"
-                  name="useActivationPrice"
-                  type="checkbox"
-                  checked={formData.useActivationPrice}
-                  onChange={handleInputChange}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
-                />
-              </div>
-              <div className="ml-3 text-sm leading-6">
-                <label htmlFor="useActivationPrice" className="font-medium text-gray-900 dark:text-gray-100">
-                  Sử dụng Giá Kích Hoạt
-                </label>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Chỉ bắt đầu theo dõi Trailing Stop khi giá đạt mức này.</p>
-              </div>
-            </div>
+          <div>
+            <Divider orientation="left">Cài đặt Trailing Stop</Divider>
 
-            {/* Input Giá Kích Hoạt (hiển thị có điều kiện, đổi type="text") */}
-            {formData.useActivationPrice && (
-              <div>
-                <label htmlFor="activationPrice" className={labelBaseClasses}>Giá Kích Hoạt ({quoteCurrency}):</label>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  id="activationPrice"
-                  name="activationPrice"
-                  value={formData.activationPrice}
-                  onChange={handleInputChange}
-                  required
-                  className={inputBaseClasses}
-                  placeholder={`Giá ${quoteCurrency} để bắt đầu theo dõi`}
+            {/* Entry Price / Initial Reference Price */}
+            <Form.Item
+              label={`Giá tham chiếu ban đầu (${formData.symbol.split('/')[1]})`}
+              name="price"
+              rules={[
+                { required: true, message: 'Vui lòng nhập giá tham chiếu!' },
+                {
+                  validator: (_, value) => {
+                    if (!value || isValidNumberInput(value)) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(new Error('Vui lòng nhập số hợp lệ!'));
+                  }
+                }
+              ]}
+            >
+              <Input
+                placeholder="Giá mua vào hoặc giá bắt đầu theo dõi"
+                inputMode="decimal"
+              />
+            </Form.Item>
+
+            {formData.type === 'trailing-stop' && (
+              <Alert
+                message={
+                  <Text style={{ fontSize: 12 }}>
+                    Ước tính Stop Loss ban đầu: <Text type="danger" strong>{estimatedStopPriceDisplay}</Text> ({formData.useActivationPrice ? 'sau kích hoạt' : 'nếu giá giảm ngay'})
+                  </Text>
+                }
+                type="info"
+                showIcon
+                size="small"
+                style={{ marginBottom: 16 }}
+              />
+            )}
+
+            {/* Checkbox và Input Giá Kích Hoạt */}
+            <Form.Item
+              name="useActivationPrice"
+              valuePropName="checked"
+            >
+              <Space direction="vertical" size="small">
+                <Switch
+                  checkedChildren="Sử dụng Giá Kích Hoạt"
+                  unCheckedChildren="Không sử dụng"
                 />
-              </div>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Chỉ bắt đầu theo dõi Trailing Stop khi giá đạt mức này.
+                </Text>
+              </Space>
+            </Form.Item>
+
+            {/* Input Giá Kích Hoạt (hiển thị có điều kiện) */}
+            {formData.useActivationPrice && (
+              <Form.Item
+                label={`Giá Kích Hoạt (${quoteCurrency})`}
+                name="activationPrice"
+                rules={[
+                  { required: true, message: 'Vui lòng nhập giá kích hoạt!' },
+                  {
+                    validator: (_, value) => {
+                      if (!value || isValidNumberInput(value)) {
+                        return Promise.resolve();
+                      }
+                      return Promise.reject(new Error('Vui lòng nhập số hợp lệ!'));
+                    }
+                  }
+                ]}
+              >
+                <Input
+                  placeholder={`Giá ${quoteCurrency} để bắt đầu theo dõi`}
+                  inputMode="decimal"
+                />
+              </Form.Item>
             )}
             {/* ----------------------------------------- */}
 
 
             {/* Trailing Percent */}
-            <div>
-              <label htmlFor="trailingPercent" className={labelBaseClasses}>Trailing Percent (%):</label>
-              <input
-                type="text" // ĐỔI THÀNH TEXT để kiểm soát hoàn toàn
-                inputMode="decimal" // Gợi ý bàn phím số thập phân trên mobile
-                id="trailingPercent"
-                name="trailingPercent"
-                value={formData.trailingPercent}
-                onChange={handleInputChange}
-                required
-                className={inputBaseClasses}
+            <Form.Item
+              label="Trailing Percent (%)"
+              name="trailingPercent"
+              rules={[
+                { required: true, message: 'Vui lòng nhập phần trăm trailing!' },
+                {
+                  validator: (_, value) => {
+                    if (!value || isValidNumberInput(value)) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(new Error('Vui lòng nhập số hợp lệ!'));
+                  }
+                }
+              ]}
+            >
+              <Input
                 placeholder="1.0"
+                inputMode="decimal"
+                suffix="%"
               />
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Khoảng cách Stop: <span className="font-semibold">≈ {trailingAmountDisplay}</span> (tính từ giá {formData.useActivationPrice ? 'kích hoạt' : 'tham chiếu'})
-              </p>
-              {/* Info Box - Sử dụng giá trị đã định dạng */}
-              <div className="mt-3 text-xs text-blue-700 dark:text-blue-300 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-md border border-blue-200 dark:border-blue-800/50">
-                <p className="font-medium flex items-center"><InformationCircleIcon className="w-4 h-4 mr-1" />Trailing Stop Loss (Giả lập)</p>
-                {formData.useActivationPrice ? (
-                  <p className="mt-1">
-                    Khi giá thị trường đạt <span className="font-semibold">{formattedActivationPrice}</span>,
-                    hệ thống sẽ bắt đầu theo dõi. Nếu giá sau đó giảm <span className="font-semibold">{formData.trailingPercent || '___'}%</span> từ mức cao nhất (tính từ lúc kích hoạt),
-                    lệnh <span className="font-semibold">Market Sell</span> sẽ được đặt.
-                  </p>
-                ) : (
-                  <p className="mt-1">
-                    Khi giá giảm <span className="font-semibold">{formData.trailingPercent || '___'}%</span> từ mức cao nhất (ban đầu là <span className="font-semibold">{formattedReferencePrice}</span>),
-                    một lệnh <span className="font-semibold">Market Sell</span> sẽ được đặt.
-                  </p>
-                )}
-                <p className="mt-1">Giá Stop Loss sẽ tự động điều chỉnh tăng theo giá thị trường.</p>
-                <p className="mt-1 text-orange-600 dark:text-orange-400 font-medium">
-                  Giá Stop Loss ước tính ban đầu ({formData.useActivationPrice ? 'sau kích hoạt' : 'ngay lập tức'}): <span className="font-bold">{estimatedStopPriceDisplay}</span>.
-                </p>
-              </div>
-            </div>
+            </Form.Item>
+
+            <Alert
+              message={
+                <Text style={{ fontSize: 12 }}>
+                  Khoảng cách Stop: <Text strong>≈ {trailingAmountDisplay}</Text> (tính từ giá {formData.useActivationPrice ? 'kích hoạt' : 'tham chiếu'})
+                </Text>
+              }
+              type="info"
+              showIcon
+              size="small"
+              style={{ marginBottom: 16 }}
+            />
+
+            {/* Info Box */}
+            <Alert
+              message={
+                <Space direction="vertical" size="small">
+                  <Text strong style={{ fontSize: 12 }}>
+                    <InfoCircleOutlined style={{ marginRight: 4 }} />
+                    Trailing Stop Loss (Giả lập)
+                  </Text>
+                  {formData.useActivationPrice ? (
+                    <Text style={{ fontSize: 12 }}>
+                      Khi giá thị trường đạt <Text strong>{formattedActivationPrice}</Text>,
+                      hệ thống sẽ bắt đầu theo dõi. Nếu giá sau đó giảm <Text strong>{formData.trailingPercent || '___'}%</Text> từ mức cao nhất (tính từ lúc kích hoạt),
+                      lệnh <Text strong>Market Sell</Text> sẽ được đặt.
+                    </Text>
+                  ) : (
+                    <Text style={{ fontSize: 12 }}>
+                      Khi giá giảm <Text strong>{formData.trailingPercent || '___'}%</Text> từ mức cao nhất (ban đầu là <Text strong>{formattedReferencePrice}</Text>),
+                      một lệnh <Text strong>Market Sell</Text> sẽ được đặt.
+                    </Text>
+                  )}
+                  <Text style={{ fontSize: 12 }}>Giá Stop Loss sẽ tự động điều chỉnh tăng theo giá thị trường.</Text>
+                  <Text type="warning" strong style={{ fontSize: 12 }}>
+                    Giá Stop Loss ước tính ban đầu ({formData.useActivationPrice ? 'sau kích hoạt' : 'ngay lập tức'}): <Text strong>{estimatedStopPriceDisplay}</Text>.
+                  </Text>
+                </Space>
+              }
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
           </div>
         )}
 
         {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={loading}
-          className={`vscode-button w-full justify-center text-base font-medium py-3 ${
-            formData.side === 'buy' && formData.type !== 'trailing-stop'
-              ? 'bg-[var(--success)] hover:bg-[var(--success)] hover:opacity-90'
-              : formData.side === 'sell'
-                ? 'bg-[var(--error)] hover:bg-[var(--error)] hover:opacity-90'
-                : 'bg-[var(--accent)]'
-          } ${loading ? 'opacity-70 cursor-wait' : ''}`}
-        >
-          {loading && <ArrowPathIcon className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" />}
-          <span>
+        <Form.Item style={{ marginBottom: 0 }}>
+          <Button
+            type="primary"
+            htmlType="submit"
+            loading={loading}
+            size="large"
+            block
+            style={{
+              height: 48,
+              fontSize: 16,
+              fontWeight: 600,
+              background: formData.side === 'buy' && formData.type !== 'trailing-stop'
+                ? 'linear-gradient(135deg, #10b981, #059669)'
+                : formData.side === 'sell'
+                  ? 'linear-gradient(135deg, #ef4444, #dc2626)'
+                  : 'linear-gradient(135deg, #3b82f6, #2563eb)',
+              borderColor: 'transparent',
+            }}
+            icon={loading ? <ReloadOutlined spin /> : <LineChartOutlined />}
+          >
             {loading
-              ? 'Processing...'
+              ? 'Đang xử lý...'
               : formData.type === 'trailing-stop'
-                ? `Start Trailing Stop ${formData.trailingPercent}%`
-                : `${formData.side === 'buy' ? 'Buy' : 'Sell'} ${formData.symbol.split('/')[0]}`}
-          </span>
-        </button>
-      </form>
+                ? `Bắt đầu Trailing Stop ${formData.trailingPercent}%`
+                : `${formData.side === 'buy' ? 'Mua' : 'Bán'} ${formData.symbol.split('/')[0]}`}
+          </Button>
+        </Form.Item>
+      </Form>
 
       {/* Status/Result Display Area */}
-      <div className="mt-5 space-y-3">
+      <Space direction="vertical" size="middle" style={{ width: '100%', marginTop: 20 }}>
         {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/30 text-red-700 dark:text-red-300 px-4 py-3 rounded-md flex items-center gap-3 text-sm">
-            <ExclamationCircleIcon className="w-5 h-5" />
-            <span className="font-medium">Lỗi:</span> {error}
-          </div>
+          <Alert
+            message="Lỗi"
+            description={error}
+            type="error"
+            showIcon
+            closable
+            onClose={() => setError(null)}
+          />
         )}
         {simulationStatus && !orderResult && (
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 text-blue-700 dark:text-blue-300 px-4 py-3 rounded-md flex items-center gap-3 text-sm">
-            <InformationCircleIcon className="w-5 h-5" />
-            <span>{simulationStatus}</span>
-          </div>
+          <Alert
+            message="Thông tin"
+            description={simulationStatus}
+            type="info"
+            showIcon
+          />
         )}
         {orderResult && !simulationStatus && (
-          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700/50 text-green-800 dark:text-green-200 px-4 py-3 rounded-md text-sm">
-            <h3 className="font-medium mb-2 flex items-center"><CheckCircleIcon className="w-5 h-5 mr-2" />Lệnh đã đặt thành công:</h3>
-            <div className="bg-gray-50 dark:bg-gray-900 p-2 rounded max-h-40 overflow-y-auto text-xs">
-              <pre className="whitespace-pre-wrap break-words">
-                {JSON.stringify(orderResult, null, 2)}
-              </pre>
-            </div>
-          </div>
+          <Alert
+            message={
+              <Space>
+                <CheckCircleOutlined />
+                <Text strong>Lệnh đã đặt thành công</Text>
+              </Space>
+            }
+            description={
+              <div style={{
+                backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                padding: 8,
+                borderRadius: 4,
+                maxHeight: 160,
+                overflow: 'auto',
+                fontSize: 12,
+                fontFamily: 'monospace'
+              }}>
+                <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                  {JSON.stringify(orderResult, null, 2)}
+                </pre>
+              </div>
+            }
+            type="success"
+            showIcon={false}
+          />
         )}
-      </div>
+      </Space>
     </div>
   );
 }

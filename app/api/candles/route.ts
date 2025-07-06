@@ -9,13 +9,15 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '100');
 
     const exchange = new ccxt.binance({
-      apiKey: process.env.BINANCE_API_KEY,
-      secret: process.env.BINANCE_SECRET_KEY,
+      // Remove API keys for public data access - we only need OHLCV data
+      // apiKey: process.env.BINANCE_API_KEY,
+      // secret: process.env.BINANCE_SECRET_KEY,
       options: { adjustForTimeDifference: true },
       enableRateLimit: true,
     });
-    
-    exchange.setSandboxMode(true);
+
+    // Use real market data instead of sandbox
+    // exchange.setSandboxMode(true);
 
     // Load markets first to ensure symbol is available
     await exchange.loadMarkets();

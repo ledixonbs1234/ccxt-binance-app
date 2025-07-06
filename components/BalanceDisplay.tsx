@@ -94,13 +94,13 @@ export default function BalanceDisplay() {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-2">
-            <WalletIcon className="w-5 h-5 text-[var(--accent)]" />
-            <h3 className="text-lg font-semibold text-[var(--foreground)]">Available Balance</h3>
+            <WalletIcon className="w-5 h-5 text-accent" />
+            <h3 className="text-lg font-semibold text-foreground">Số dư khả dụng</h3>
           </div>
           <button
             onClick={fetchBalance}
             disabled={loading}
-            className={`vscode-button-secondary p-2 rounded-md ${loading ? 'animate-spin' : ''}`}
+            className={`px-3 py-1.5 text-sm font-medium rounded-button bg-secondary-bg text-foreground border border-border hover:bg-hover transition-colors ${loading ? 'animate-spin' : ''}`}
             aria-label="Refresh balance"
           >
             <ArrowPathIcon className="w-4 h-4" />
@@ -109,13 +109,11 @@ export default function BalanceDisplay() {
 
         {/* Error State */}
         {!loading && error && (
-          <div className="vscode-card bg-[var(--error)] bg-opacity-10 border-[var(--error)] border-opacity-30">
-            <div className="flex items-center space-x-3">
-              <ExclamationTriangleIcon className="w-5 h-5 text-[var(--error)]" />
-              <div>
-                <p className="font-medium text-sm text-[var(--error)]">Cannot load balance</p>
-                <p className="text-xs text-[var(--error)] opacity-75">{error}</p>
-              </div>
+          <div className="notification notification-error">
+            <ExclamationTriangleIcon className="w-5 h-5 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-sm">Cannot load balance</p>
+              <p className="text-xs opacity-75">{error}</p>
             </div>
           </div>
         )}
@@ -124,30 +122,30 @@ export default function BalanceDisplay() {
         {!loading && !error && balance && (
           <div className="space-y-2">
             {filteredBalanceList.length > 0 ? (
-              <div className="vscode-card p-0">
-                <table className="vscode-table">
+              <div className="bg-card border border-border rounded-card p-0 shadow-custom">
+                <table className="w-full">
                   <thead>
-                    <tr>
-                      <th className="text-left">Asset</th>
-                      <th className="text-right">Available</th>
+                    <tr className="border-b border-border">
+                      <th className="text-left p-4 text-sm font-medium text-muted">Tài sản</th>
+                      <th className="text-right p-4 text-sm font-medium text-muted">Khả dụng</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredBalanceList.map((coin) => (
-                      <tr key={coin.symbol}>
-                        <td>
+                      <tr key={coin.symbol} className="border-b border-border last:border-b-0 hover:bg-hover transition-colors">
+                        <td className="p-4">
                           <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 rounded-full bg-[var(--sidebar)] flex items-center justify-center text-sm font-semibold text-[var(--foreground)]">
+                            <div className="w-8 h-8 rounded-full bg-secondary-bg flex items-center justify-center text-sm font-semibold text-foreground">
                               {coin.icon}
                             </div>
-                            <div>
-                              <p className="font-semibold text-[var(--foreground)]">{coin.symbol}</p>
-                              <p className="text-xs text-[var(--muted)]">{coin.name}</p>
+                            <div className="min-w-0">
+                              <p className="font-semibold text-foreground">{coin.symbol}</p>
+                              <p className="text-xs text-muted truncate">{coin.name}</p>
                             </div>
                           </div>
                         </td>
-                        <td className="text-right">
-                          <span className="font-mono text-[var(--foreground)]">
+                        <td className="text-right p-4">
+                          <span className="font-mono text-foreground">
                             {formatAmount(coin.amount, coin.symbol)}
                           </span>
                         </td>
@@ -157,15 +155,15 @@ export default function BalanceDisplay() {
                 </table>
               </div>
             ) : (
-              <div className="vscode-card text-center py-8">
-                <p className="text-[var(--muted)]">No significant balance found.</p>
+              <div className="bg-card border border-border rounded-card p-8 text-center shadow-custom">
+                <p className="text-muted">Không tìm thấy số dư đáng kể.</p>
               </div>
             )}
           </div>
         )}
         {!loading && !error && !balance && (
-          <div className="vscode-card text-center py-8">
-            <p className="text-[var(--muted)]">No balance data available.</p>
+          <div className="bg-card border border-border rounded-card p-8 text-center shadow-custom">
+            <p className="text-muted">Không có dữ liệu số dư.</p>
           </div>
         )}
       </div>

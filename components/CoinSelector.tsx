@@ -1,6 +1,11 @@
 'use client';
 
+import { Card, Row, Col, Typography, Spin, Badge } from 'antd';
+import { CheckOutlined } from '@ant-design/icons';
 import { useTrading, CoinSymbol } from '../contexts/TradingContext';
+import { useTranslations } from '../contexts/LanguageContext';
+
+const { Text, Title } = Typography;
 
 const COIN_INFO = {
   BTC: { name: 'Bitcoin', icon: '₿', color: '#f7931a' },
@@ -10,77 +15,96 @@ const COIN_INFO = {
 
 export default function CoinSelector() {
   const { selectedCoin, setSelectedCoin, coinsData, isLoading } = useTrading();
+  const t = useTranslations();
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <Row gutter={[16, 16]}>
       {Object.entries(COIN_INFO).map(([coin, info]) => {
         const coinData = coinsData[coin as CoinSymbol];
         const isSelected = selectedCoin === coin;
-        
+
         return (
-          <button
-            key={coin}
-            onClick={() => setSelectedCoin(coin as CoinSymbol)}
-            className={`floating-card p-6 transition-all duration-300 text-left hover:shadow-xl ${
-              isSelected 
-                ? 'ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--background)] transform scale-105' 
-                : 'hover:transform hover:scale-105'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div 
-                  className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg"
-                  style={{ 
-                    background: `linear-gradient(135deg, ${info.color}, ${info.color}CC)`,
-                    boxShadow: `0 4px 14px 0 ${info.color}40`
-                  }}
-                >
-                  {info.icon}
+          <Col xs={24} sm={8} key={coin}>
+            <Card
+              hoverable
+              onClick={() => setSelectedCoin(coin as CoinSymbol)}
+              style={{
+                borderColor: isSelected ? '#1890ff' : undefined,
+                transform: isSelected ? 'scale(1.02)' : undefined,
+                transition: 'all 0.3s ease',
+                cursor: 'pointer'
+              }}
+              styles={{ body: { padding: 24 } }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 12,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'white',
+                      fontWeight: 'bold',
+                      fontSize: 20,
+                      background: `linear-gradient(135deg, ${info.color}, ${info.color}CC)`,
+                      boxShadow: `0 4px 14px 0 ${info.color}40`
+                    }}
+                  >
+                    {info.icon}
+                  </div>
+                  <div>
+                    <Title level={4} style={{ margin: 0, fontSize: 20 }}>
+                      {coin}
+                    </Title>
+                    <Text type="secondary" style={{ fontSize: 14 }}>
+                      {info.name}
+                    </Text>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-xl font-bold text-[var(--foreground)]">
-                    {coin}
-                  </span>
-                  <p className="text-sm text-[var(--muted)]">
-                    {info.name}
-                  </p>
-                </div>
+                {isSelected && (
+                  <Badge
+                    status="processing"
+                    text={<Text style={{ fontSize: 12, color: '#1890ff', fontWeight: 500 }}>ĐANG CHỌN</Text>}
+                  />
+                )}
               </div>
-              {isSelected && (
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-[var(--accent)] rounded-full animate-pulse"></div>
-                  <span className="text-xs text-[var(--accent)] font-medium">ACTIVE</span>
-                </div>
-              )}
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-[var(--muted)]">Price</span>
-                <div className="text-right">
-                  <div className="text-xl font-mono font-bold text-[var(--foreground)]">
-                    {isLoading ? (
-                      <div className="skeleton h-6 w-24 rounded"></div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text type="secondary" style={{ fontSize: 14 }}>{t.trading.price}</Text>
+                  <div style={{ textAlign: 'right' }}>
+                    {isLoading || !coinData ? (
+                      <Spin size="small" />
                     ) : (
-                      `$${coinData.price.toLocaleString()}`
+                      <Text strong style={{ fontSize: 20, fontFamily: 'monospace' }}>
+                        ${coinData.price < 0.01 ? coinData.price.toFixed(8) : coinData.price.toLocaleString()}
+                      </Text>
                     )}
                   </div>
                 </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-[var(--muted)]">24h Change</span>
-                <div className={`modern-badge ${
-                  coinData.change24h >= 0 ? 'modern-badge-success' : 'modern-badge-error'
-                }`}>
-                  {coinData.change24h >= 0 ? '+' : ''}
-                  {coinData.change24h.toFixed(2)}%
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text type="secondary" style={{ fontSize: 14 }}>Thay đổi 24h</Text>
+                  {!coinData ? (
+                    <Spin size="small" />
+                  ) : (
+                    <Badge
+                      count={`${coinData.change24h >= 0 ? '+' : ''}${coinData.change24h.toFixed(2)}%`}
+                      style={{
+                        backgroundColor: coinData.change24h >= 0 ? '#52c41a' : '#ff4d4f',
+                        fontSize: 12,
+                        fontWeight: 500
+                      }}
+                    />
+                  )}
                 </div>
               </div>
-            </div>
-          </button>
+            </Card>
+          </Col>
         );
       })}
-    </div>
+    </Row>
   );
 }

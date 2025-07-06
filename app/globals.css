@@ -3,91 +3,90 @@
 @tailwind components;
 @tailwind utilities;
 
-/* VS Code Inspired Color Palette */
-:root {
-  /* VS Code Dark Theme Colors */
-  --vscode-bg: #1e1e1e;
-  --vscode-bg-secondary: #252526;
-  --vscode-bg-tertiary: #2d2d30;
-  --vscode-border: #3c3c3c;
-  --vscode-text: #cccccc;
-  --vscode-text-secondary: #9d9d9d;
-  --vscode-text-muted: #6a6a6a;
-  --vscode-blue: #007acc;
-  --vscode-blue-hover: #1177bb;
-  --vscode-green: #4caf50;
-  --vscode-red: #f44336;
-  --vscode-orange: #ff9800;
-  --vscode-purple: #9c27b0;
-  --vscode-yellow: #ffeb3b;
-  --vscode-accent: #0078d4;
-  --vscode-accent-hover: #106ebe;
-  --vscode-sidebar: #333333;
-  --vscode-activity-bar: #2c2c2c;
-  --vscode-status-bar: #007acc;
-  --vscode-panel: #1e1e1e;
-  --vscode-editor: #1e1e1e;
-  --vscode-selection: #264f78;
-  --vscode-find-match: #515c6a;
-  --vscode-hover: #2c2c2c;
-  --vscode-success: #89d185;
-  --vscode-warning: #e2c08d;
-  --vscode-error: #f48771;
-  --vscode-info: #75beff;
-  
-  /* Light theme variants */
-  --vscode-light-bg: #ffffff;
-  --vscode-light-bg-secondary: #f8f8f8;
-  --vscode-light-bg-tertiary: #f0f0f0;
-  --vscode-light-border: #e1e1e1;
-  --vscode-light-text: #383838;
-  --vscode-light-text-secondary: #717171;
-  --vscode-light-text-muted: #8c8c8c;
-}
-
-/* Dark theme (default) */
-[data-theme="dark"] {
-  --background: var(--vscode-bg);
-  --foreground: var(--vscode-text);
-  --card-bg: var(--vscode-bg-secondary);
-  --border: var(--vscode-border);
-  --muted: var(--vscode-text-muted);
-  --accent: var(--vscode-blue);
-  --accent-hover: var(--vscode-blue-hover);
-  --sidebar: var(--vscode-sidebar);
-  --panel: var(--vscode-panel);
-  --success: var(--vscode-success);
-  --warning: var(--vscode-warning);
-  --error: var(--vscode-error);
-  --info: var(--vscode-info);
-}
-
-/* Light theme - Modern & Beautiful 2025 */
-[data-theme="light"] {
-  --background: #ffffff;
-  --foreground: #0f172a;
+/* Professional Trading Interface 2025 - Light Theme */
+:root, [data-theme="light"] {
+  /* Core Colors */
+  --background: #f8fafc; /* Very light gray, almost white */
+  --foreground: #0f172a; /* Slate 900 - Dark text for high contrast */
   --card-bg: #ffffff;
-  --border: #e2e8f0;
-  --muted: #64748b;
-  --accent: #3b82f6;
-  --accent-hover: #2563eb;
-  --sidebar: #f8fafc;
+  --border: #e2e8f0; /* Slate 200 */
+  --muted: #64748b; /* Slate 500 */
+  --accent: #3b82f6; /* Blue 500 */
+  --accent-hover: #2563eb; /* Blue 600 */
+  --sidebar: #ffffff;
   --panel: #ffffff;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --error: #ef4444;
-  --info: #3b82f6;
-  --hover: #f1f5f9;
-  --secondary-bg: #f8fafc;
+  --hover: #f1f5f9; /* Slate 100 */
+  --secondary-bg: #f1f5f9; /* Slate 100 */
   --input-bg: #ffffff;
-  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+
+  /* Trading-Specific Colors */
+  --trading-buy: #10b981; /* Emerald 500 - Buy/Long positions */
+  --trading-sell: #ef4444; /* Red 500 - Sell/Short positions */
+  --trading-profit: #10b981; /* Green for profits */
+  --trading-loss: #ef4444; /* Red for losses */
+  --trading-neutral: #64748b; /* Gray for neutral states */
+
+  /* System Colors */
+  --success: #10b981; /* Emerald 500 */
+  --warning: #f59e0b; /* Amber 500 */
+  --error: #ef4444; /* Red 500 */
+  --info: #0ea5e9; /* Sky 500 */
+
+  /* Shadows & Elevation */
+  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.07), 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  --gradient-secondary: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
-  --gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  --gradient-error: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, var(--accent) 0%, #60a5fa 100%);
+  --gradient-buy: linear-gradient(135deg, var(--trading-buy) 0%, #34d399 100%);
+  --gradient-sell: linear-gradient(135deg, var(--trading-sell) 0%, #f87171 100%);
+  --gradient-success: linear-gradient(135deg, var(--success) 0%, #34d399 100%);
+  --gradient-warning: linear-gradient(135deg, var(--warning) 0%, #fcd34d 100%);
+  --gradient-error: linear-gradient(135deg, var(--error) 0%, #f87171 100%);
+}
+
+/* Professional Trading Interface 2025 - Dark Theme */
+[data-theme="dark"] {
+  /* Core Colors */
+  --background: #0f172a; /* Slate 900 */
+  --foreground: #f1f5f9; /* Slate 100 - Light text for high contrast */
+  --card-bg: #1e293b; /* Slate 800 */
+  --border: #334155; /* Slate 700 */
+  --muted: #94a3b8; /* Slate 400 */
+  --accent: #3b82f6; /* Blue 500 */
+  --accent-hover: #2563eb; /* Blue 600 */
+  --sidebar: #1e293b; /* Slate 800 */
+  --panel: #1e293b; /* Slate 800 */
+  --hover: #334155; /* Slate 700 */
+  --secondary-bg: #334155; /* Slate 700 */
+  --input-bg: #1e293b; /* Slate 800 */
+
+  /* Trading-Specific Colors */
+  --trading-buy: #10b981; /* Emerald 500 - Buy/Long positions */
+  --trading-sell: #ef4444; /* Red 500 - Sell/Short positions */
+  --trading-profit: #10b981; /* Green for profits */
+  --trading-loss: #ef4444; /* Red for losses */
+  --trading-neutral: #94a3b8; /* Gray for neutral states */
+
+  /* System Colors */
+  --success: #10b981; /* Emerald 500 */
+  --warning: #f59e0b; /* Amber 500 */
+  --error: #ef4444; /* Red 500 */
+  --info: #0ea5e9; /* Sky 500 */
+
+  /* Shadows & Elevation */
+  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, var(--accent) 0%, #60a5fa 100%);
+  --gradient-buy: linear-gradient(135deg, var(--trading-buy) 0%, #34d399 100%);
+  --gradient-sell: linear-gradient(135deg, var(--trading-sell) 0%, #f87171 100%);
+  --gradient-success: linear-gradient(135deg, var(--success) 0%, #34d399 100%);
+  --gradient-warning: linear-gradient(135deg, var(--warning) 0%, #fcd34d 100%);
+  --gradient-error: linear-gradient(135deg, var(--error) 0%, #f87171 100%);
 }
 
 /* Base styles */
@@ -103,512 +102,25 @@ html {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   background-color: var(--background);
   color: var(--foreground);
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
   overflow-x: hidden;
 }
 
-/* Modern Card Component - 2025 Edition */
-.vscode-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 0;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: var(--shadow);
-  position: relative;
-  overflow: hidden;
-  backdrop-filter: blur(10px);
-}
+/* Enhanced Container System - Using Tailwind utilities instead of custom classes */
 
-.vscode-card:hover {
-  border-color: var(--accent);
-  box-shadow: var(--shadow-xl);
-  transform: translateY(-4px);
-}
+/* Card System - Using Tailwind utilities instead of custom classes */
 
-.vscode-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--gradient-primary);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
+/* Button System - Using Tailwind utilities instead of custom classes */
+/* Input System - Using Tailwind utilities instead of custom classes */
 
-.vscode-card:hover::before {
-  opacity: 1;
-}
+/* Table System - Using Tailwind utilities instead of custom classes */
+/* Badge System - Using Tailwind utilities instead of custom classes */
 
-/* Card Header */
-.vscode-card-header {
-  padding: 1.5rem 1.5rem 0 1.5rem;
-  border-bottom: 1px solid var(--border);
-  background: linear-gradient(135deg, var(--card-bg) 0%, var(--secondary-bg) 100%);
-  border-radius: 16px 16px 0 0;
-}
-
-.vscode-card-content {
-  padding: 1.5rem;
-}
-
-.vscode-card-title {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--foreground);
-  margin-bottom: 0.25rem;
-}
-
-.vscode-card-subtitle {
-  font-size: 0.875rem;
-  color: var(--muted);
-  margin-bottom: 1rem;
-}
-
-/* Modern Button Styles - 2025 Edition */
-.vscode-button {
-  background: var(--gradient-primary);
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 10px;
-  cursor: pointer;
-  font-size: 0.875rem;
-  font-weight: 600;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  position: relative;
-  overflow: hidden;
-}
-
-.vscode-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-}
-
-.vscode-button:active {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-}
-
-.vscode-button-secondary {
-  background: var(--card-bg);
-  color: var(--foreground);
-  border: 1px solid var(--border);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.vscode-button-secondary:hover {
-  background: var(--hover);
-  border-color: var(--accent);
-  transform: translateY(-1px);
-}
-
-.vscode-button-success {
-  background: var(--gradient-success);
-  color: white;
-}
-
-.vscode-button-warning {
-  background: var(--gradient-warning);
-  color: white;
-}
-
-.vscode-button-error {
-  background: var(--gradient-error);
-  color: white;
-}
-
-/* Modern Input Styles */
-.vscode-input {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  color: var(--foreground);
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.vscode-input:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  transform: translateY(-1px);
-}
-
-.vscode-input::placeholder {
-  color: var(--muted);
-}
-
-/* Modern Panel Styles */
-.vscode-panel {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: var(--shadow);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.vscode-panel:hover {
-  box-shadow: var(--shadow-lg);
-  transform: translateY(-2px);
-}
-
-.vscode-panel-header {
-  background: linear-gradient(135deg, var(--card-bg) 0%, var(--secondary-bg) 100%);
-  padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid var(--border);
-  font-weight: 600;
-  font-size: 1rem;
-  color: var(--foreground);
-}
-
-.vscode-panel-content {
-  padding: 1.5rem;
-}
-
-.vscode-status-bar {
-  background: var(--vscode-status-bar);
-  color: white;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.8rem;
-  border-radius: 3px;
-}
-
-.vscode-badge {
-  background: var(--accent);
-  color: white;
-  padding: 0.2rem 0.5rem;
-  border-radius: 10px;
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-.vscode-badge-success {
-  background: var(--success);
-  color: var(--vscode-bg);
-}
-
-.vscode-badge-warning {
-  background: var(--warning);
-  color: var(--vscode-bg);
-}
-
-.vscode-badge-error {
-  background: var(--error);
-  color: white;
-}
-
-.vscode-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-}
-
-.vscode-table th,
-.vscode-table td {
-  padding: 0.5rem;
-  text-align: left;
-  border-bottom: 1px solid var(--border);
-}
-
-.vscode-table th {
-  background: var(--sidebar);
-  font-weight: 600;
-  color: var(--foreground);
-}
-
-.vscode-table tr:hover {
-  background: var(--hover, rgba(255, 255, 255, 0.05));
-}
-
-/* Modern Utility Classes */
-.glass-effect {
-  backdrop-filter: blur(20px);
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.gradient-text {
-  background: var(--gradient-primary);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.floating-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(10px);
-}
-
-/* Loading Skeleton */
-.skeleton {
-  background: linear-gradient(90deg, var(--border) 25%, var(--hover) 50%, var(--border) 75%);
-  background-size: 200% 100%;
-  animation: loading 1.5s infinite;
-}
-
-@keyframes loading {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-/* Status indicators */
-.status-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.status-online {
-  background: var(--gradient-success);
-  color: white;
-}
-
-.status-offline {
-  background: var(--gradient-error);
-  color: white;
-}
-
-.status-warning {
-  background: var(--gradient-warning);
-  color: white;
-}
-
-/* Enhanced Badge Styles */
-.modern-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.modern-badge-success {
-  background: var(--gradient-success);
-  color: white;
-}
-
-.modern-badge-error {
-  background: var(--gradient-error);
-  color: white;
-}
-
-.modern-badge-warning {
-  background: var(--gradient-warning);
-  color: white;
-}
-
-.modern-badge-info {
-  background: var(--gradient-secondary);
-  color: white;
-}
-
-/* Enhanced Table Styles */
-.modern-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.875rem;
-  background: var(--card-bg);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: var(--shadow);
-}
-
-.modern-table th,
-.modern-table td {
-  padding: 1rem;
-  text-align: left;
-  border-bottom: 1px solid var(--border);
-}
-
-.modern-table th {
-  background: var(--secondary-bg);
-  font-weight: 600;
-  color: var(--foreground);
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.modern-table tbody tr:hover {
-  background: var(--hover);
-}
-
-.modern-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-/* Enhanced Form Styles */
-.modern-form-group {
-  margin-bottom: 1.5rem;
-}
-
-.modern-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--foreground);
-}
-
-.modern-select {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  color: var(--foreground);
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  width: 100%;
-}
-
-.modern-select:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  transform: translateY(-1px);
-}
-
-.modern-textarea {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  color: var(--foreground);
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  width: 100%;
-  resize: vertical;
-  min-height: 120px;
-}
-
-.modern-textarea:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-/* Progress Bar */
-.progress-bar {
-  width: 100%;
-  height: 8px;
-  background: var(--border);
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: var(--gradient-primary);
-  transition: width 0.3s ease;
-}
-
-/* Notification Styles */
-.notification {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 1rem;
-  border-radius: 12px;
-  margin-bottom: 1rem;
-  border: 1px solid;
-  animation: slideIn 0.3s ease;
-}
-
-.notification-success {
-  background: rgba(16, 185, 129, 0.1);
-  border-color: var(--success);
-  color: var(--success);
-}
-
-.notification-error {
-  background: rgba(239, 68, 68, 0.1);
-  border-color: var(--error);
-  color: var(--error);
-}
-
-.notification-warning {
-  background: rgba(245, 158, 11, 0.1);
-  border-color: var(--warning);
-  color: var(--warning);
-}
-
-.notification-info {
-  background: rgba(59, 130, 246, 0.1);
-  border-color: var(--info);
-  color: var(--info);
-}
-
-/* Animation utilities */
-@keyframes slideIn {
-  from {
-    transform: translateX(-100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.animate-slide-in {
-  animation: slideIn 0.3s ease-out;
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
-}
-
-/* Responsive design */
-@media (max-width: 768px) {
-  html {
-    font-size: 13px;
-  }
-  
-  .vscode-card {
-    padding: 0.75rem;
-  }
-  
-  .vscode-button {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.8rem;
-  }
-}
+/* Notification System - Using Tailwind utilities instead of custom classes */
+/* Animations and Utilities - Using Tailwind utilities instead of custom classes */
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }

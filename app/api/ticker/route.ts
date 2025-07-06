@@ -6,11 +6,14 @@ export async function GET(request: Request) {
   const symbol = searchParams.get('symbol') || 'BTC/USDT';
   
   const binance = new ccxt.binance({
-    apiKey: process.env.BINANCE_API_KEY!,
-    secret: process.env.BINANCE_SECRET_KEY!,
+    // Remove API keys for public data access - we only need ticker data
+    // apiKey: process.env.BINANCE_API_KEY!,
+    // secret: process.env.BINANCE_SECRET_KEY!,
     options: { adjustForTimeDifference: true },
+    enableRateLimit: true,
   });
-  binance.setSandboxMode(true);
+  // Use real market data instead of sandbox
+  // binance.setSandboxMode(true);
 
   try {
     // Load markets first to ensure symbol is available

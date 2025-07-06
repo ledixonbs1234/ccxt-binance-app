@@ -1,48 +1,28 @@
-/**
- * Utility functions for the trading app
- */
+// File: lib/utils.ts
 
 let idCounter = 0;
 
 /**
- * Generate a unique ID for notifications and other components
- * Uses timestamp + counter to ensure uniqueness even for rapid successive calls
+ * Generates a unique ID using a timestamp and a counter.
+ * Ensures uniqueness even for calls within the same millisecond.
+ * @returns {number} A unique number ID.
  */
 export function generateUniqueId(): number {
-  return Date.now() + (idCounter++);
+  const timestamp = Date.now();
+  // Reset counter if time has changed to keep numbers smaller
+  if (timestamp > (idCounter - (idCounter % 1000))) {
+    idCounter = timestamp * 1000;
+  } else {
+    idCounter++;
+  }
+  return idCounter;
 }
 
 /**
- * Generate a unique string ID using timestamp and random value
+ * Generates a unique string ID using a timestamp and a random component.
+ * Useful for keys where a string is preferred.
+ * @returns {string} A unique string ID.
  */
 export function generateUniqueStringId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
-
-/**
- * Format number with proper decimal places
- */
-export function formatNumber(num: number, decimals: number = 2): string {
-  return num.toFixed(decimals);
-}
-
-/**
- * Format currency with proper symbols
- */
-export function formatCurrency(amount: number, currency: string = 'USDT'): string {
-  return `${formatNumber(amount)} ${currency}`;
-}
-
-/**
- * Debounce function to prevent excessive API calls
- */
-export function debounce<T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
+  return `${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 9)}`;
 }

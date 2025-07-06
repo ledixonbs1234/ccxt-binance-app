@@ -12,6 +12,12 @@ type BitcoinTickerProps = {
 
 const formatPrice = (price: number | null): string => {
     if (price === null) return '---.--';
+
+    // For micro-cap cryptocurrencies like PEPE, use 8 decimal places
+    if (price < 0.01) {
+        return `$${price.toFixed(8)}`;
+    }
+
     return price.toLocaleString('en-US', {
         style: 'currency',
         currency: 'USD',

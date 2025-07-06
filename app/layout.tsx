@@ -1,14 +1,14 @@
 // File: app/layout.tsx
 import type { Metadata } from "next";
-import { GeistSans } from "geist/font/sans";
-import { GeistMono } from "geist/font/mono";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "./providers";
 
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+
 export const metadata: Metadata = {
-  title: "VS Code Trading Dashboard",
-  description: "Professional crypto trading interface inspired by VS Code",
-  viewport: "width=device-width, initial-scale=1",
+  title: "Bảng điều khiển Trader chuyên nghiệp",
+  description: "Giao diện giao dịch crypto chuyên nghiệp với dữ liệu thời gian thực và phân tích hỗ trợ AI.",
 };
 
 export default function RootLayout({
@@ -17,11 +17,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}
-        data-theme="dark"
-      >
+    <html lang="vi" suppressHydrationWarning>
+      <body className={`${inter.variable} antialiased font-sans`}>
         <ThemeProvider>
           {children}
         </ThemeProvider>
