@@ -18,6 +18,7 @@ import {
 } from 'lightweight-charts';
 import { useTrading, Timeframe } from '../contexts/TradingContext';
 import { useTranslations } from '../contexts/LanguageContext';
+import TimeframeSelector from './TimeframeSelector';
 import LoadingOverlay from './LoadingOverlay';
 import { formatPrice, formatPercentageChange, formatVolume } from '../lib/priceFormatter';
 
@@ -297,25 +298,14 @@ export default function EnhancedDemoCandlestickChart({
 
       {/* Timeframe Selector */}
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-muted">{t.trading.timeframe}:</span>
-          <div className="flex items-center gap-1">
-            {(['1m', '5m', '15m', '1h', '4h', '1d'] as Timeframe[]).map((tf) => (
-              <button
-                key={tf}
-                onClick={() => setTimeframe(tf)}
-                className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                  timeframe === tf
-                    ? 'bg-accent text-accent-foreground'
-                    : 'bg-card-bg text-muted hover:bg-accent/10 hover:text-foreground'
-                }`}
-              >
-                {tf}
-              </button>
-            ))}
-          </div>
-        </div>
-        
+        <TimeframeSelector
+          value={timeframe}
+          onChange={setTimeframe}
+          variant="segmented"
+          size="small"
+          showLabel={true}
+        />
+
         <div className="text-sm text-muted">
           {selectedCoin}/USDT • Dữ liệu thời gian thực
         </div>

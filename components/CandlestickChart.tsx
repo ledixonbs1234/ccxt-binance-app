@@ -21,7 +21,15 @@ import {
 import { useTrading, Timeframe } from '../contexts/TradingContext';
 import { useTranslations } from '../contexts/LanguageContext';
 import LoadingOverlay from './LoadingOverlay';
+import { ChartSkeleton } from './skeletons/MarketSkeleton';
 import { TrailingStopPosition } from '../types/trailingStop';
+import { getSmartPrecision, formatSmartPrice, isMicroCapToken } from '../lib/priceFormatter';
+import { getActiveTrailingStops, TrailingStopState } from '../lib/trailingStopState';
+import { EnhancedTrailingStopService } from '../lib/enhancedTrailingStopService';
+import TrailingStopOverlay from './TrailingStopOverlay';
+import StrategyIndicatorLegend from './StrategyIndicatorLegend';
+import TrailingStopLegend from './TrailingStopLegend';
+import { InlineTimeframeSelector } from './TimeframeSelector';
 // Removed unused imports - using local formatChartPrice and formatChartVolume instead
 
 // Enhanced tooltip data interface
@@ -42,16 +50,27 @@ interface TooltipData {
   y: number;
 }
 
-// Utility functions for formatting (renamed to avoid conflict with imported formatPrice)
+// Smart chart price formatting with enhanced micro-cap support
 const formatChartPrice = (price: number): string => {
-  if (price >= 1000) {
-    return price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const precision = getSmartPrecision(price);
+
+  if (precision.useScientific) {
+    // For extremely small values, use scientific notation
+    return price.toExponential(precision.precision);
+  } else if (price >= 1000) {
+    // Large values with locale formatting
+    return price.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
   } else if (price >= 1) {
+    // Standard values
     return price.toFixed(4);
-  } else if (price < 0.01) {
-    // For micro-cap cryptocurrencies like PEPE, use 8 decimal places
-    return price.toFixed(8);
+  } else if (isMicroCapToken(price)) {
+    // Micro-cap tokens - remove trailing zeros for better readability
+    return parseFloat(price.toFixed(precision.precision)).toString();
   } else {
+    // Small values
     return price.toFixed(6);
   }
 };
@@ -67,7 +86,17 @@ const formatChartVolume = (volume: number): string => {
   return volume.toLocaleString(undefined, { maximumFractionDigits: 0 });
 };
 
-export default function CandlestickChart() {
+interface CandlestickChartProps {
+  height?: number;
+  showControls?: boolean;
+  enhancedPositions?: TrailingStopPosition[]; // Allow external positions
+}
+
+export default function CandlestickChart({
+  height = 450,
+  showControls = true,
+  enhancedPositions: externalPositions
+}: CandlestickChartProps = {}) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartInstanceRef = useRef<IChartApi | null>(null);
   const priceSeriesRef = useRef<ISeriesApi<'Candlestick' | 'Line'> | null>(null);
@@ -80,6 +109,9 @@ export default function CandlestickChart() {
   const [showVolume, setShowVolume] = useState(true);
   const [showTrailingStops, setShowTrailingStops] = useState(true);
   const [trailingStopPositions, setTrailingStopPositions] = useState<TrailingStopPosition[]>([]);
+  const [activeTrailingStops, setActiveTrailingStops] = useState<TrailingStopState[]>([]);
+  const [enhancedService, setEnhancedService] = useState<EnhancedTrailingStopService | null>(null);
+  const [enhancedPositions, setEnhancedPositions] = useState<TrailingStopPosition[]>([]);
 
   // Enhanced tooltip state
   const [tooltipData, setTooltipData] = useState<TooltipData>({
@@ -104,9 +136,8 @@ export default function CandlestickChart() {
   const profitZonesRef = useRef<Map<string, any>>(new Map());
 
   const candleData = allCandleData[selectedCoin] || [];
-  // Use context loading state instead of checking candleData length
-  // This prevents the chart from being blocked when switching coins
-  const isLoading = contextIsLoading && candleData.length === 0;
+  // Show loading when context is loading OR when we have no data for the selected coin
+  const isLoading = contextIsLoading || candleData.length === 0;
 
   // Function to add trailing stop visualization to chart
   const addTrailingStopVisualization = useCallback((position: TrailingStopPosition) => {
@@ -481,38 +512,94 @@ export default function CandlestickChart() {
     }
   }, [candleData, isLoading, chartType, showVolume, selectedCoin]);
 
+  // Initialize Enhanced Trailing Stop Service
+  useEffect(() => {
+    const service = new EnhancedTrailingStopService({
+      defaultStrategy: 'percentage',
+      defaultTrailingPercent: 2.5,
+      defaultMaxLoss: 5,
+      atrPeriod: 14,
+      atrMultiplier: 2,
+      volatilityLookback: 20,
+      volatilityMultiplier: 0.5,
+      maxPositions: 10,
+      maxRiskPerPosition: 2,
+      updateInterval: 5000,
+      priceChangeThreshold: 0.1,
+    });
+    setEnhancedService(service);
+  }, []);
+
+  // Load enhanced positions from service
+  useEffect(() => {
+    if (!enhancedService) return;
+
+    const loadEnhancedPositions = async () => {
+      try {
+        const positions = await enhancedService.getActivePositions();
+        // Filter positions for current symbol
+        const symbolPositions = positions.filter(pos =>
+          pos.symbol.replace('/', '') === selectedCoin.replace('/', '')
+        );
+        // Use external positions if provided, otherwise use service positions
+        const finalPositions = externalPositions || symbolPositions;
+        setEnhancedPositions(finalPositions);
+      } catch (error) {
+        console.error('Error loading enhanced positions:', error);
+        setEnhancedPositions([]);
+      }
+    };
+
+    // Load initially
+    loadEnhancedPositions();
+
+    // Set up interval to refresh every 5 seconds
+    const interval = setInterval(loadEnhancedPositions, 5000);
+
+    return () => clearInterval(interval);
+  }, [enhancedService, selectedCoin, externalPositions]);
+
+  // Effect để load active trailing stops (legacy)
+  useEffect(() => {
+    const loadActiveTrailingStops = async () => {
+      try {
+        const stops = await getActiveTrailingStops();
+        setActiveTrailingStops(stops);
+      } catch (error) {
+        console.error('Error loading active trailing stops:', error);
+        setActiveTrailingStops([]);
+      }
+    };
+
+    // Load initially
+    loadActiveTrailingStops();
+
+    // Set up interval to refresh every 5 seconds
+    const interval = setInterval(loadActiveTrailingStops, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   if (chartError) {
     return <div className="notification notification-error">{chartError}</div>;
   }
-  
-  // Available timeframes
-  const availableTimeframes: Timeframe[] = ['1m', '5m', '15m', '1h', '4h', '1d'];
+
+  // Show skeleton during initial loading
+  if (isLoading && candleData.length === 0) {
+    return <ChartSkeleton />;
+  }
 
   return (
     <div className="relative">
       {/* Timeframe Selector - positioned at the top */}
       <div
-        className="absolute top-2 left-2 flex items-center gap-1 bg-card border border-border rounded-lg p-1 shadow-custom-lg"
+        className="absolute top-2 left-2"
         style={{ zIndex: 1001, pointerEvents: 'auto' }}
       >
-        <span className="text-xs text-foreground font-medium px-2 py-1">
-          {t.trading.timeframe}:
-        </span>
-        {availableTimeframes.map((tf) => (
-          <button
-            key={tf}
-            onClick={() => setTimeframe(tf)}
-            className={`px-2 py-1 text-xs font-medium rounded transition-all duration-200 hover:scale-105 active:scale-95 ${
-              timeframe === tf
-                ? 'bg-accent text-white shadow-md'
-                : 'text-foreground hover:bg-hover hover:text-accent'
-            }`}
-            style={{ pointerEvents: 'auto', position: 'relative', zIndex: 1002 }}
-            title={t.trading.timeframes[tf]}
-          >
-            {t.trading.timeframes[tf]}
-          </button>
-        ))}
+        <InlineTimeframeSelector
+          value={timeframe}
+          onChange={setTimeframe}
+        />
       </div>
 
       {/* Chart Control Buttons - positioned below timeframe selector */}
@@ -572,11 +659,42 @@ export default function CandlestickChart() {
 
       {/* Chart Container with LoadingOverlay */}
       <LoadingOverlay isLoading={isLoading} message="Loading chart data...">
-        <div
-          ref={chartContainerRef}
-          className={`transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
-          style={{ height: '450px', width: '100%' }}
-        />
+        <div className="relative">
+          <div
+            ref={chartContainerRef}
+            className={`transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
+            style={{ height: `${height}px`, width: '100%' }}
+          />
+
+          {/* Trailing Stop Overlay */}
+          {showTrailingStops && chartInstanceRef.current && (
+            <>
+              <TrailingStopOverlay
+                chart={chartInstanceRef.current}
+                trailingStops={activeTrailingStops}
+                positions={enhancedPositions} // Pass enhanced positions for strategy indicators
+                symbol={selectedCoin}
+                currentPrice={coinsData[selectedCoin]?.price || 0}
+                showStrategyIndicators={true} // Enable strategy indicators
+                candleData={candleData}
+              />
+              <TrailingStopLegend
+                trailingStops={activeTrailingStops}
+                symbol={selectedCoin}
+                currentPrice={coinsData[selectedCoin]?.price || 0}
+              />
+
+              {/* Strategy Indicator Legend */}
+              {enhancedPositions.length > 0 && (
+                <StrategyIndicatorLegend
+                  positions={enhancedPositions}
+                  symbol={selectedCoin}
+                  currentPrice={coinsData[selectedCoin]?.price || 0}
+                />
+              )}
+            </>
+          )}
+        </div>
       </LoadingOverlay>
 
       {/* Binance-style Enhanced Tooltip */}

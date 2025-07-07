@@ -1,0 +1,715 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import {
+  Card,
+  Row,
+  Col,
+  Button,
+  Select,
+  Form,
+  InputNumber,
+  Alert,
+  Statistic,
+  Badge,
+  Space,
+  Typography,
+  Divider,
+  Switch,
+  Spin,
+  List,
+  Tag,
+  Progress
+} from 'antd';
+import {
+  PlayCircleOutlined,
+  StopOutlined,
+  BarChartOutlined,
+  TrophyOutlined,
+  SettingOutlined,
+  PauseCircleOutlined,
+  PlusOutlined,
+  RiseOutlined,
+  FallOutlined,
+  BellOutlined
+} from '@ant-design/icons';
+import { TrailingStopStrategy } from '../types/trailingStop';
+import { EnhancedTrailingStopService } from '../lib/enhancedTrailingStopService';
+import { useTrading, CoinSymbol } from '../contexts/TradingContext';
+import { useTranslations } from '../contexts/LanguageContext';
+import StrategySelector from './StrategySelector';
+import StrategyConfigPanel from './StrategyConfigPanel';
+import EnhancedDemoCandlestickChart from './EnhancedDemoCandlestickChart';
+import EnhancedTrailingStopPanel from './EnhancedTrailingStopPanel';
+
+const { Title, Text } = Typography;
+const { Option } = Select;
+
+interface StrategyPerformance {
+  strategy: TrailingStopStrategy;
+  name: string;
+  performance: {
+    winRate: number;
+    avgProfit: number;
+    maxDrawdown: number;
+    sharpeRatio: number;
+  };
+}
+
+interface TrailingStopPosition {
+  id: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  quantity: number;
+  entryPrice: number;
+  currentPrice: number;
+  stopLossPrice: number;
+  trailingPercent: number;
+  strategy: TrailingStopStrategy;
+  status: 'pending' | 'active' | 'triggered' | 'cancelled';
+  unrealizedPnL: number;
+  unrealizedPnLPercent: number;
+  maxDrawdown: number;
+  maxProfit: number;
+  createdAt: number;
+  activatedAt?: number;
+  triggeredAt?: number;
+}
+
+interface TrailingStopAlert {
+  id: string;
+  type: 'activation' | 'adjustment' | 'trigger' | 'error';
+  message: string;
+  position: TrailingStopPosition;
+  timestamp: number;
+  severity: 'info' | 'success' | 'warning' | 'error';
+}
+
+interface TrailingStopPerformance {
+  totalPositions: number;
+  activePositions: number;
+  triggeredPositions: number;
+  totalPnL: number;
+  totalPnLPercent: number;
+  winRate: number;
+  avgHoldTime: number;
+  maxDrawdown: number;
+}
+
+interface TrailingStopSettings {
+  defaultStrategy: TrailingStopStrategy;
+  defaultTrailingPercent: number;
+  defaultMaxLoss: number;
+  atrPeriod: number;
+  atrMultiplier: number;
+  volatilityLookback: number;
+  volatilityMultiplier: number;
+  maxPositions: number;
+  maxRiskPerPosition: number;
+  updateInterval: number;
+  priceChangeThreshold: number;
+}
+
+export default function AdvancedTrailingStopDemo() {
+  const { selectedCoin, coinsData } = useTrading();
+  const t = useTranslations();
+  const [selectedStrategy, setSelectedStrategy] = useState<TrailingStopStrategy>('percentage');
+  const [strategyConfig, setStrategyConfig] = useState<Record<string, any>>({});
+  const [selectedSymbol, setSelectedSymbol] = useState('BTC/USDT');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [performanceData, setPerformanceData] = useState<StrategyPerformance[]>([]);
+  const [demoPosition, setDemoPosition] = useState<any>(null);
+  const [service, setService] = useState<EnhancedTrailingStopService | null>(null);
+  const [positions, setPositions] = useState<TrailingStopPosition[]>([]);
+  const [alerts, setAlerts] = useState<TrailingStopAlert[]>([]);
+  const [performance, setPerformance] = useState<TrailingStopPerformance>({
+    totalPositions: 0,
+    activePositions: 0,
+    triggeredPositions: 0,
+    totalPnL: 0,
+    totalPnLPercent: 0,
+    winRate: 0,
+    avgHoldTime: 0,
+    maxDrawdown: 0,
+  });
+  const [isServiceRunning, setIsServiceRunning] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [form] = Form.useForm();
+
+  // Initialize service
+  useEffect(() => {
+    const defaultSettings: TrailingStopSettings = {
+      defaultStrategy: 'percentage',
+      defaultTrailingPercent: 2.5,
+      defaultMaxLoss: 5,
+      atrPeriod: 14,
+      atrMultiplier: 2,
+      volatilityLookback: 20,
+      volatilityMultiplier: 0.5,
+      maxPositions: 10,
+      maxRiskPerPosition: 2,
+      updateInterval: 5000,
+      priceChangeThreshold: 0.1,
+    };
+
+    const trailingService = new EnhancedTrailingStopService(defaultSettings);
+    setService(trailingService);
+
+    // Create demo positions for the selected coin
+    createDemoPositions(trailingService, selectedCoin);
+  }, [selectedCoin]); // Re-initialize when coin changes
+
+  // Helper functions
+  const createDemoPositions = async (trailingService: EnhancedTrailingStopService, selectedCoin: CoinSymbol) => {
+    try {
+      // Create demo positions based on selected coin
+      const demoConfigs = getDemoConfigsForCoin(selectedCoin);
+
+      const createdPositions = await Promise.all(
+        demoConfigs.map(config => trailingService.createPosition(config))
+      );
+
+      setPositions(createdPositions);
+      updatePerformanceMetrics(createdPositions);
+    } catch (error) {
+      console.error('Error creating demo positions:', error);
+    }
+  };
+
+  const getDemoConfigsForCoin = (coin: CoinSymbol) => {
+    const currentCoinData = coinsData[coin];
+    if (!currentCoinData || currentCoinData.price === 0) {
+      return [];
+    }
+
+    const currentPrice = currentCoinData.price;
+    const strategies: TrailingStopStrategy[] = ['percentage', 'atr', 'fibonacci', 'dynamic'];
+
+    return strategies.map((strategy, index) => ({
+      symbol: `${coin}/USDT`,
+      side: Math.random() > 0.5 ? 'sell' : 'buy' as 'buy' | 'sell',
+      quantity: coin === 'PEPE' ? 1000000 + Math.random() * 5000000 :
+                coin === 'ETH' ? 0.5 + Math.random() * 2 :
+                0.01 + Math.random() * 0.05,
+      entryPrice: currentPrice * (0.995 + Math.random() * 0.01), // ±0.5% variation
+      strategy: strategy,
+      trailingPercent: 1.5 + Math.random() * 3, // 1.5-4.5%
+      maxLossPercent: 3 + Math.random() * 4, // 3-7%
+    }));
+  };
+
+  const updatePerformanceMetrics = (currentPositions: TrailingStopPosition[]) => {
+    const activeCount = currentPositions.filter(p => p.status === 'active' || p.status === 'pending').length;
+    const triggeredCount = currentPositions.filter(p => p.status === 'triggered').length;
+    const totalPnL = currentPositions.reduce((sum, p) => sum + p.unrealizedPnL, 0);
+    const totalPnLPercent = currentPositions.length > 0
+      ? currentPositions.reduce((sum, p) => sum + p.unrealizedPnLPercent, 0) / currentPositions.length
+      : 0;
+    const winCount = currentPositions.filter(p => p.unrealizedPnLPercent > 0).length;
+    const winRate = currentPositions.length > 0 ? (winCount / currentPositions.length) * 100 : 0;
+    const maxDrawdown = Math.max(...currentPositions.map(p => p.maxDrawdown), 0);
+
+    setPerformance({
+      totalPositions: currentPositions.length,
+      activePositions: activeCount,
+      triggeredPositions: triggeredCount,
+      totalPnL,
+      totalPnLPercent,
+      winRate,
+      avgHoldTime: 0, // Calculate if needed
+      maxDrawdown,
+    });
+  };
+
+  const handlePositionUpdate = (updatedPosition: TrailingStopPosition) => {
+    setPositions(prev => {
+      const updated = prev.map(p => p.id === updatedPosition.id ? updatedPosition : p);
+      updatePerformanceMetrics(updated);
+      return updated;
+    });
+
+    // Add alert for position update
+    const alert: TrailingStopAlert = {
+      id: `alert_${Date.now()}`,
+      type: 'adjustment',
+      message: `Position ${updatedPosition.symbol} updated - Trailing: ${updatedPosition.trailingPercent.toFixed(1)}%`,
+      position: updatedPosition,
+      timestamp: Date.now(),
+      severity: 'info',
+    };
+    setAlerts(prev => [alert, ...prev.slice(0, 49)]);
+  };
+
+  const startService = () => {
+    if (service) {
+      service.startMonitoring();
+      setIsServiceRunning(true);
+
+      const alert: TrailingStopAlert = {
+        id: `alert_${Date.now()}`,
+        type: 'activation',
+        message: 'Advanced trailing stop service started',
+        position: positions[0] || {} as TrailingStopPosition,
+        timestamp: Date.now(),
+        severity: 'success',
+      };
+      setAlerts(prev => [alert, ...prev.slice(0, 49)]);
+    }
+  };
+
+  const stopService = () => {
+    if (service) {
+      service.stopMonitoring();
+      setIsServiceRunning(false);
+
+      const alert: TrailingStopAlert = {
+        id: `alert_${Date.now()}`,
+        type: 'trigger',
+        message: 'Advanced trailing stop service stopped',
+        position: positions[0] || {} as TrailingStopPosition,
+        timestamp: Date.now(),
+        severity: 'warning',
+      };
+      setAlerts(prev => [alert, ...prev.slice(0, 49)]);
+    }
+  };
+
+  const createNewPosition = async () => {
+    if (!service) return;
+
+    try {
+      // Get real market data from trading context
+      const currentCoinData = coinsData[selectedCoin];
+      if (!currentCoinData || currentCoinData.price === 0) {
+        throw new Error(`No market data available for ${selectedCoin}`);
+      }
+
+      const currentPrice = currentCoinData.price;
+      const riskAmountUSD = 100; // $100 risk per position
+      const maxLossPercent = 5; // 5% max loss
+
+      const calculatePositionSize = (price: number, riskAmount: number, maxLoss: number): number => {
+        const maxLossAmount = riskAmount * (maxLoss / 100);
+        return maxLossAmount / (price * (maxLoss / 100));
+      };
+
+      const quantity = calculatePositionSize(currentPrice, riskAmountUSD, maxLossPercent);
+
+      // Use current market price with small realistic variation (±0.1% for entry timing)
+      const entryPriceVariation = currentPrice * (Math.random() * 0.002 - 0.001); // ±0.1%
+      const entryPrice = currentPrice + entryPriceVariation;
+
+      // Calculate dynamic trailing percentage based on coin volatility
+      const calculateTrailingPercent = (coinData: any): number => {
+        const volatility = Math.abs(coinData.change24h);
+
+        // Base trailing percentage on 24h volatility
+        if (volatility > 10) return 3 + Math.random() * 2; // High volatility: 3-5%
+        if (volatility > 5) return 2 + Math.random() * 2;  // Medium volatility: 2-4%
+        return 1.5 + Math.random() * 1.5; // Low volatility: 1.5-3%
+      };
+
+      const trailingPercent = calculateTrailingPercent(currentCoinData);
+
+      const newPosition = await service.createPosition({
+        symbol: `${selectedCoin}/USDT`,
+        side: Math.random() > 0.5 ? 'sell' : 'buy',
+        quantity: quantity,
+        entryPrice: entryPrice,
+        strategy: selectedStrategy,
+        trailingPercent: trailingPercent,
+        maxLossPercent: maxLossPercent,
+      });
+
+      setPositions(prev => {
+        const updated = [...prev, newPosition];
+        updatePerformanceMetrics(updated);
+        return updated;
+      });
+
+      const alert: TrailingStopAlert = {
+        id: `alert_${Date.now()}`,
+        type: 'activation',
+        message: `New ${selectedStrategy} position created for ${selectedCoin}`,
+        position: newPosition,
+        timestamp: Date.now(),
+        severity: 'success',
+      };
+      setAlerts(prev => [alert, ...prev.slice(0, 49)]);
+
+    } catch (error) {
+      console.error('Error creating new position:', error);
+      const alert: TrailingStopAlert = {
+        id: `alert_${Date.now()}`,
+        type: 'error',
+        message: `Failed to create position: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        position: {} as TrailingStopPosition,
+        timestamp: Date.now(),
+        severity: 'error',
+      };
+      setAlerts(prev => [alert, ...prev.slice(0, 49)]);
+    }
+  };
+
+  // Analyze strategies performance
+  const analyzeStrategies = async () => {
+    if (!service) return;
+    
+    setIsAnalyzing(true);
+    try {
+      const performance = await service.getStrategiesPerformance(selectedSymbol, '1h', 48);
+      setPerformanceData(performance);
+    } catch (error) {
+      console.error('Strategy analysis failed:', error);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  // Create demo position
+  const createDemoPosition = async () => {
+    if (!service) return;
+
+    try {
+      const position = await service.createPositionWithStrategy({
+        symbol: selectedSymbol,
+        side: 'sell',
+        quantity: 0.01,
+        strategy: selectedStrategy,
+        strategyConfig: strategyConfig,
+        maxLossPercent: 5,
+        accountBalance: 1000,
+        riskPercent: 2
+      });
+      
+      setDemoPosition(position);
+      service.startMonitoring();
+    } catch (error) {
+      console.error('Failed to create demo position:', error);
+    }
+  };
+
+  // Stop demo position
+  const stopDemoPosition = async () => {
+    if (!service || !demoPosition) return;
+
+    try {
+      await service.removePosition(demoPosition.id);
+      setDemoPosition(null);
+      service.stopMonitoring();
+    } catch (error) {
+      console.error('Failed to stop demo position:', error);
+    }
+  };
+
+  const getPerformanceColor = (value: number, type: 'winRate' | 'profit' | 'drawdown' | 'sharpe') => {
+    switch (type) {
+      case 'winRate':
+        return value >= 60 ? 'success' : value >= 40 ? 'warning' : 'error';
+      case 'profit':
+        return value >= 1 ? 'success' : value >= 0 ? 'warning' : 'error';
+      case 'drawdown':
+        return value <= 5 ? 'success' : value <= 15 ? 'warning' : 'error';
+      case 'sharpe':
+        return value >= 1 ? 'success' : value >= 0.5 ? 'warning' : 'error';
+      default:
+        return 'default';
+    }
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--color-bg-container)' }}>
+      {/* Header */}
+      <Card style={{ borderRadius: 0, borderLeft: 0, borderRight: 0, borderTop: 0 }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 0' }}>
+          <Row justify="space-between" align="middle">
+            <Col>
+              <Space size="large" align="center">
+                <TrophyOutlined style={{ fontSize: 40, color: '#1890ff' }} />
+                <div>
+                  <Title level={2} style={{ margin: 0 }}>Advanced Trailing Stop System</Title>
+                  <Text type="secondary" style={{ fontSize: 16 }}>
+                    Hệ thống trailing stop nâng cao với 11 chiến lược và real-time monitoring
+                  </Text>
+                </div>
+              </Space>
+            </Col>
+            <Col>
+              <Space size="middle" wrap>
+                <Badge
+                  status={isServiceRunning ? 'processing' : 'default'}
+                  text={isServiceRunning ? 'Running' : 'Stopped'}
+                />
+                <Button
+                  type={isServiceRunning ? 'default' : 'primary'}
+                  icon={isServiceRunning ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+                  onClick={isServiceRunning ? stopService : startService}
+                >
+                  {isServiceRunning ? 'Stop' : 'Start'} Service
+                </Button>
+                <Button
+                  icon={<SettingOutlined />}
+                  onClick={() => setShowSettings(!showSettings)}
+                >
+                  Settings
+                </Button>
+              </Space>
+            </Col>
+          </Row>
+        </div>
+      </Card>
+
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px' }}>
+        {/* Performance Overview */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={12} sm={6}>
+            <Card size="small">
+              <Statistic
+                title="Total Positions"
+                value={performance.totalPositions}
+                prefix={<BarChartOutlined />}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card size="small">
+              <Statistic
+                title="Active"
+                value={performance.activePositions}
+                prefix={<RiseOutlined />}
+                valueStyle={{ color: '#3f8600' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card size="small">
+              <Statistic
+                title="Total P&L"
+                value={performance.totalPnL}
+                precision={2}
+                prefix="$"
+                valueStyle={{ color: performance.totalPnL >= 0 ? '#3f8600' : '#cf1322' }}
+                suffix={`(${performance.totalPnLPercent >= 0 ? '+' : ''}${performance.totalPnLPercent.toFixed(1)}%)`}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card size="small">
+              <Statistic
+                title="Win Rate"
+                value={performance.winRate}
+                precision={1}
+                suffix="%"
+                valueStyle={{ color: performance.winRate >= 50 ? '#3f8600' : '#cf1322' }}
+              />
+            </Card>
+          </Col>
+        </Row>
+
+        <Row gutter={[16, 16]}>
+          {/* Configuration Panel */}
+          <Col xs={24} lg={12}>
+            <Card title="Strategy Configuration" size="small">
+              <Form form={form} layout="vertical">
+                <Form.Item label="Symbol">
+                  <Select
+                    value={selectedSymbol}
+                    onChange={setSelectedSymbol}
+                    style={{ width: '100%' }}
+                  >
+                    <Option value="BTC/USDT">BTC/USDT</Option>
+                    <Option value="ETH/USDT">ETH/USDT</Option>
+                    <Option value="PEPE/USDT">PEPE/USDT</Option>
+                  </Select>
+                </Form.Item>
+
+                <Form.Item label="Strategy">
+                  <StrategySelector
+                    value={selectedStrategy}
+                  onChange={setSelectedStrategy}
+                  size="small"
+                />
+              </Form.Item>
+
+              <StrategyConfigPanel
+                strategy={selectedStrategy}
+                config={strategyConfig}
+                onChange={setStrategyConfig}
+                size="small"
+              />
+
+              <Space style={{ marginTop: 16 }}>
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={createNewPosition}
+                  disabled={!isServiceRunning}
+                >
+                  Create Position
+                </Button>
+
+                <Button
+                  type="primary"
+                  icon={<PlayCircleOutlined />}
+                  onClick={createDemoPosition}
+                  disabled={!!demoPosition}
+                >
+                  Demo Position
+                </Button>
+
+                <Button
+                  danger
+                  icon={<StopOutlined />}
+                  onClick={stopDemoPosition}
+                  disabled={!demoPosition}
+                >
+                  Stop Demo
+                </Button>
+              </Space>
+            </Form>
+          </Card>
+        </Col>
+
+        {/* Alerts Panel */}
+        <Col xs={24} lg={12}>
+          <Card
+            title={
+              <Space>
+                <BellOutlined />
+                Real-time Alerts
+                <Badge count={alerts.length} showZero />
+              </Space>
+            }
+            size="small"
+            style={{ height: 400 }}
+          >
+            <div style={{ height: 320, overflowY: 'auto' }}>
+              <List
+                dataSource={alerts.slice(0, 20)}
+                renderItem={(alert) => (
+                  <List.Item style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                    <div style={{ width: '100%' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Tag color={
+                          alert.severity === 'success' ? 'green' :
+                          alert.severity === 'warning' ? 'orange' :
+                          alert.severity === 'error' ? 'red' : 'blue'
+                        }>
+                          {alert.type.toUpperCase()}
+                        </Tag>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                          {new Date(alert.timestamp).toLocaleTimeString()}
+                        </Text>
+                      </div>
+                      <Text style={{ fontSize: '13px', display: 'block', marginTop: 4 }}>
+                        {alert.message}
+                      </Text>
+                    </div>
+                  </List.Item>
+                )}
+              />
+            </div>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Positions Panel */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col span={24}>
+          <EnhancedTrailingStopPanel
+            positions={positions}
+            onPositionUpdate={handlePositionUpdate}
+            isServiceRunning={isServiceRunning}
+          />
+        </Col>
+      </Row>
+
+      {/* Chart Visualization */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col span={24}>
+          <Card title="Price Chart with Trailing Stops" size="small">
+            <EnhancedDemoCandlestickChart
+              symbol={`${selectedCoin}/USDT`}
+              positions={positions}
+              height={400}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Strategy Performance Analysis */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col span={24}>
+          <Card
+            title="Strategy Performance Analysis"
+            size="small"
+            extra={
+              <Button
+                type="primary"
+                size="small"
+                loading={isAnalyzing}
+                onClick={analyzeStrategies}
+              >
+                Analyze Strategies
+              </Button>
+            }
+          >
+            {performanceData.length > 0 ? (
+              <Row gutter={[16, 16]}>
+                {performanceData.slice(0, 6).map((item, index) => (
+                  <Col xs={24} sm={12} lg={8} key={item.strategy}>
+                    <Card size="small" style={{ textAlign: 'center' }}>
+                      <Space direction="vertical" size="small">
+                        <Badge
+                          count={index + 1}
+                          style={{ backgroundColor: index === 0 ? '#52c41a' : '#1890ff' }}
+                        />
+                        <Text strong>{item.name}</Text>
+                        <Row gutter={8}>
+                          <Col span={12}>
+                            <Statistic
+                              title="Win Rate"
+                              value={item.performance.winRate}
+                              precision={1}
+                              suffix="%"
+                              valueStyle={{
+                                fontSize: '14px',
+                                color: item.performance.winRate >= 50 ? '#52c41a' : '#ff4d4f'
+                              }}
+                            />
+                          </Col>
+                          <Col span={12}>
+                            <Statistic
+                              title="Avg Profit"
+                              value={item.performance.avgProfit}
+                              precision={2}
+                              suffix="%"
+                              valueStyle={{
+                                fontSize: '14px',
+                                color: item.performance.avgProfit >= 0 ? '#52c41a' : '#ff4d4f'
+                              }}
+                            />
+                          </Col>
+                        </Row>
+                        <Progress
+                          percent={Math.min(item.performance.sharpeRatio * 50, 100)}
+                          size="small"
+                          status={item.performance.sharpeRatio >= 1 ? 'success' : 'normal'}
+                          format={() => `Sharpe: ${item.performance.sharpeRatio.toFixed(2)}`}
+                        />
+                      </Space>
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                <Text type="secondary">Click "Analyze Strategies" to see performance comparison</Text>
+              </div>
+            )}
+          </Card>
+        </Col>
+      </Row>
+    </div>
+  </div>
+};

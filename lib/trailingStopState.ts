@@ -1,4 +1,9 @@
 import { supabase } from './supabase';
+import {
+  addTrailingStopToQueue,
+  removeTrailingStopFromQueue,
+  initializeTrailingStopQueue
+} from './trailingStopQueue';
 
 export interface TrailingStopState {
     stateKey: string;
@@ -10,71 +15,92 @@ export interface TrailingStopState {
     highestPrice: number;
     trailingPercent: number;
     quantity: number;
-    checkInterval?: NodeJS.Timeout;
+    side: 'buy' | 'sell';
     triggerPrice?: number;
     triggeredAt?: number;
-    sellOrderId?: string;
+    buyOrderId?: string;  // ID của lệnh mua ban đầu
+    sellOrderId?: string; // ID của lệnh bán khi trigger
     errorMessage?: string;
+    strategy?: string;
+    // Removed checkInterval as it's now handled by BullMQ
 }
 
-// Map vẫn được giữ lại để quản lý các interval trong bộ nhớ
+// Deprecated: Keep for backward compatibility but no longer used for state management
 export const activeTrailingStops = new Map<string, TrailingStopState>();
 
-// Cập nhật state trong Supabase và Map
+// Create or update trailing stop state with BullMQ queue integration
 export const updateTrailingStopState = async (key: string, state: TrailingStopState) => {
-      // 1. Cập nhật Map trong bộ nhớ (nếu cần để quản lý interval)
-      const currentState = activeTrailingStops.get(key);
-      const intervalId = currentState?.checkInterval; // Giữ lại ID interval nếu có
-      activeTrailingStops.set(key, { ...state, checkInterval: intervalId }); // Cập nhật map
-
-    // Chuẩn bị dữ liệu cho Supabase (loại bỏ checkInterval vì không thể lưu trữ)
-    const { checkInterval, ...stateForDB } = state;
-
     try {
-        // 3. Upsert vào Supabase
+        // 1. Upsert state to Supabase
         const { data, error } = await supabase
             .from('trailing_stops')
-            .upsert({ // Sử dụng upsert cho đơn giản (chèn nếu chưa có, cập nhật nếu có)
-                ...stateForDB,
-                stateKey: key, // Đảm bảo stateKey được bao gồm để khớp
+            .upsert({
+                ...state,
+                stateKey: key,
                 updated_at: new Date().toISOString()
             }, {
-                onConflict: 'stateKey' // Chỉ định cột để kiểm tra xung đột
+                onConflict: 'stateKey'
             })
-            .select() // Chọn dòng đã chèn/cập nhật
-            .single(); // Mong đợi một dòng duy nhất
+            .select()
+            .single();
 
         if (error) {
-            console.error(`[State] Lỗi Supabase upsert cho key ${key}:`, error);
-            throw error; // Ném lỗi lại để xử lý ở hàm gọi nếu cần
+            console.error(`[TrailingStopState] Error upserting state for ${key}:`, error);
+            throw error;
         }
-        console.log(`[State] Trạng thái Supabase đã được upsert cho key ${key}`);
 
-    } catch (dbError) {
-        console.error(`[State] Thao tác cơ sở dữ liệu thất bại cho key ${key}:`, dbError);
-        // Quyết định cách xử lý lỗi DB (ví dụ: log, có thể thử lại sau?)
+        // 2. Add to BullMQ queue for monitoring (only for active/pending states)
+        if (state.status === 'active' || state.status === 'pending_activation') {
+            await addTrailingStopToQueue({
+                stateKey: key,
+                symbol: state.symbol,
+                entryPrice: state.entryPrice,
+                trailingPercent: state.trailingPercent,
+                quantity: state.quantity,
+                side: state.side,
+                activationPrice: state.activationPrice,
+                status: state.status,
+                strategy: state.strategy
+            });
+        }
+
+        // 3. Update deprecated Map for backward compatibility
+        activeTrailingStops.set(key, state);
+
+        console.log(`[TrailingStopState] Successfully updated state for ${key} with status: ${state.status}`);
+        return data;
+    } catch (error) {
+        console.error(`[TrailingStopState] Error updating state for ${key}:`, error);
+        throw error;
     }
 };
 
 export const removeTrailingStopState = async (key: string) => {
-    const state = activeTrailingStops.get(key);
-    if (state?.checkInterval) {
-        clearInterval(state.checkInterval);
-        console.log(`[State] Đã xóa interval cho key: ${key}`);
-    }
-    activeTrailingStops.delete(key); // Xóa khỏi map bộ nhớ
-    console.log(`[State] Đã xóa mô phỏng khỏi bộ nhớ: ${key}`);
+    try {
+        // 1. Remove from BullMQ queue
+        await removeTrailingStopFromQueue(key);
 
-    // Xóa khỏi DB
-    const { error } = await supabase
-        .from('trailing_stops')
-        .delete()
-        .eq('stateKey', key);
+        // 2. Remove from deprecated Map
+        activeTrailingStops.delete(key);
 
-    if (error) {
-        console.error(`[State] Lỗi xóa mô phỏng ${key} khỏi cơ sở dữ liệu:`, error);
-    } else {
-        console.log(`[State] Đã xóa thành công mô phỏng ${key} khỏi cơ sở dữ liệu.`);
+        // 3. Update status in database to 'cancelled' instead of deleting
+        const { error } = await supabase
+            .from('trailing_stops')
+            .update({
+                status: 'cancelled',
+                updated_at: new Date().toISOString()
+            })
+            .eq('stateKey', key);
+
+        if (error) {
+            console.error(`[TrailingStopState] Error cancelling trailing stop ${key}:`, error);
+            throw error;
+        }
+
+        console.log(`[TrailingStopState] Successfully cancelled trailing stop ${key}`);
+    } catch (error) {
+        console.error(`[TrailingStopState] Error removing trailing stop ${key}:`, error);
+        throw error;
     }
 };
 // Lấy danh sách trailing stops cho client
@@ -113,6 +139,9 @@ export const getActiveSimulationsForClient = async () => {
         );
     }
 };
+
+// Alias cho chart integration
+export const getActiveTrailingStops = getActiveSimulationsForClient;
 
 // Khôi phục các trailing stops từ Supabase khi khởi động server
 export const restoreTrailingStopsFromDB = async () => {
@@ -163,6 +192,20 @@ export const initializeTrailingStopsTable = async () => {
     }
 };
 
-// Call this function during application startup
-await initializeTrailingStopsTable();
-await restoreTrailingStopsFromDB();
+// Initialize function to be called during application startup
+export const initializeTrailingStops = async () => {
+    try {
+        console.log('[TrailingStopState] Initializing trailing stop system...');
+
+        // Initialize database table
+        await initializeTrailingStopsTable();
+
+        // Initialize BullMQ queue system (this will also restore active positions)
+        await initializeTrailingStopQueue();
+
+        console.log('[TrailingStopState] Trailing stop system initialized successfully');
+    } catch (error) {
+        console.error('[TrailingStopState] Error initializing trailing stop system:', error);
+        throw error;
+    }
+};

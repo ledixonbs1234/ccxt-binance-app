@@ -27,6 +27,7 @@ import {
 } from '@ant-design/icons';
 import { useTrading } from '../contexts/TradingContext';
 import { useTranslations } from '../contexts/LanguageContext';
+import { formatSmartPrice, isMicroCapToken } from '../lib/priceFormatter';
 import { generateUniqueId } from '../lib/utils';
 
 const { Option } = Select;
@@ -264,35 +265,31 @@ export default function OrderForm({ onSimulationStartSuccess, onOrderSuccess }: 
 
 
 
-  // Thêm hàm định dạng giá tiền (ví dụ: USDT)
+  // Enhanced formatCurrency với Smart Precision cho micro-cap tokens
   const formatCurrency = (value: number | undefined | null, currency = 'USD', digits = 2) => {
     if (value === undefined || value === null || isNaN(value)) return '___';
 
+    // Sử dụng smart formatting cho micro-cap tokens
+    if (isMicroCapToken(value)) {
+      return formatSmartPrice(value, { includeSymbol: true });
+    }
+
     // Chuẩn hóa mã tiền tệ: Nếu là USDT hoặc các stablecoin tương tự, dùng USD
     let displayCurrency = currency.toUpperCase();
-    if (['USDT', 'USDC', 'BUSD', 'TUSD', 'DAI'].includes(displayCurrency)) { // Có thể thêm các stablecoin khác
+    if (['USDT', 'USDC', 'BUSD', 'TUSD', 'DAI'].includes(displayCurrency)) {
       displayCurrency = 'USD';
     }
 
     try {
-      // Xử lý giá nhỏ cho micro-cap cryptocurrencies như PEPE
-      if (value < 0.01) {
-        return `$${value.toFixed(8)}`;
-      }
-
-      return value.toLocaleString('en-US', { // Hoặc 'vi-VN' nếu muốn định dạng Việt Nam
+      return value.toLocaleString('en-US', {
         style: 'currency',
-        currency: displayCurrency, // Sử dụng mã đã chuẩn hóa
+        currency: displayCurrency,
         minimumFractionDigits: digits,
         maximumFractionDigits: digits,
       });
     } catch (error) {
-      // Nếu vẫn lỗi (ví dụ mã tiền tệ không được hỗ trợ bởi trình duyệt/hệ thống)
       console.error("Error formatting currency:", value, currency, error);
-      // Fallback: Hiển thị số và mã gốc với xử lý giá nhỏ
-      if (value < 0.01) {
-        return `${value.toFixed(8)} ${currency}`;
-      }
+      // Fallback: Hiển thị số và mã gốc
       return `${value.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })} ${currency}`;
     }
   };

@@ -81,7 +81,7 @@ export function TradingProvider({ children }: { children: ReactNode }) {
   
   const isFirstLoad = useRef(true);
 
-  // Fetch ticker data for all coins
+  // Fetch ticker data for all coins using batch API
   const fetchTickerData = useCallback(async () => {
     const wasFirstLoad = isFirstLoad.current;
     try {
@@ -91,13 +91,32 @@ export function TradingProvider({ children }: { children: ReactNode }) {
       setError(null);
 
       const coins = Object.keys(COIN_PAIRS) as CoinSymbol[];
-      const promises = coins.map(async (coin) => {
-        const response = await fetch(`/api/ticker?symbol=${COIN_PAIRS[coin]}`);
-        if (!response.ok) throw new Error(`Failed to fetch ${coin} data`);
-        return { coin, data: await response.json() };
-      });
+      const symbols = coins.map(coin => COIN_PAIRS[coin]).join(',');
 
-      const results = await Promise.all(promises);
+      console.log(`[TradingContext] Fetching batch ticker data for: ${symbols}`);
+      const startTime = Date.now();
+
+      const response = await fetch(`/api/batch-ticker?symbols=${encodeURIComponent(symbols)}`);
+      if (!response.ok) {
+        throw new Error(`Batch ticker API failed: ${response.status} ${response.statusText}`);
+      }
+
+      const batchResult = await response.json();
+      const endTime = Date.now();
+
+      console.log(`[TradingContext] Batch ticker completed in ${endTime - startTime}ms`);
+
+      if (!batchResult.success) {
+        throw new Error(`Batch ticker failed: ${batchResult.error}`);
+      }
+
+      // Convert batch results to the expected format
+      const results = batchResult.results.map((result: any) => {
+        const coin = Object.keys(COIN_PAIRS).find(
+          key => COIN_PAIRS[key as CoinSymbol] === result.symbol
+        ) as CoinSymbol;
+        return { coin, data: result.data };
+      });
 
       setRawCoinsData(prevData => {
         const newCoinsData = { ...prevData };
@@ -130,9 +149,16 @@ export function TradingProvider({ children }: { children: ReactNode }) {
     try {
       const response = await fetch(`/api/candles?symbol=${COIN_PAIRS[coin]}&timeframe=${timeframe}&limit=100`);
       if (!response.ok) throw new Error(`Failed to fetch ${coin} candle data`);
-      
-      const data = await response.json();
-      const formattedData: CandleData[] = data.map((candle: any) => ({
+
+      const result = await response.json();
+
+      // Handle cached response format
+      const candleArray = result.data || result;
+      const isCached = result.cached || false;
+
+      console.log(`[TradingContext] Candle data for ${coin} ${timeframe} ${isCached ? '(cached)' : '(fresh)'}`);
+
+      const formattedData: CandleData[] = candleArray.map((candle: any) => ({
         time: candle[0],
         open: candle[1],
         high: candle[2],

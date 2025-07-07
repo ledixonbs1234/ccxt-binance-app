@@ -19,7 +19,7 @@ export async function POST(req: Request) { // Đổi tên thành POST, nhận Re
         const { symbol, quantity, trailingPercent, entryPrice, useActivationPrice, activationPrice } = body;
 
         // --- Validate input (Thêm validate activationPrice) ---
-        if (!symbol || typeof quantity !== 'number' || quantity <= 0 || /* ... */ typeof entryPrice !== 'number' || entryPrice <= 0) {
+        if (!symbol || typeof quantity !== 'number' || quantity <= 0 || typeof trailingPercent !== 'number' || trailingPercent <= 0 || typeof entryPrice !== 'number' || entryPrice <= 0) {
             return NextResponse.json({ message: 'Missing or invalid parameters' }, { status: 400 });
         }
         if (useActivationPrice && (typeof activationPrice !== 'number' || activationPrice <= 0)) {
@@ -34,6 +34,29 @@ export async function POST(req: Request) { // Đổi tên thành POST, nhận Re
         exchange.setSandboxMode(true);
         const stateKey = `${symbol}-${generateUniqueStringId()}`;
         const needsActivation = useActivationPrice && activationPrice > 0;
+
+        // *** THỰC HIỆN LỆNH MUA BAN ĐẦU ***
+        let buyOrderId: string | undefined;
+        let actualEntryPrice = entryPrice;
+
+        try {
+            // Chỉ thực hiện lệnh mua thực tế nếu không cần activation price
+            if (!needsActivation) {
+                console.log(`[${stateKey}] Placing initial BUY order for ${quantity} ${symbol}`);
+                const buyOrder: Order = await exchange.createMarketBuyOrder(symbol, quantity);
+                buyOrderId = buyOrder.id;
+                actualEntryPrice = buyOrder.average || buyOrder.price || entryPrice;
+                console.log(`[${stateKey}] BUY order placed successfully: ID ${buyOrderId}, Entry Price: ${actualEntryPrice}`);
+            } else {
+                console.log(`[${stateKey}] Waiting for activation price ${activationPrice} before placing BUY order`);
+            }
+        } catch (buyError: any) {
+            console.error(`[${stateKey}] FAILED to place initial BUY order:`, buyError.message || buyError);
+            return NextResponse.json({
+                message: `Failed to place initial buy order: ${buyError.message}`,
+                error: 'BUY_ORDER_FAILED'
+            }, { status: 500 });
+        }
         // --- Khởi tạo State bằng hàm update ---
         const initialState: TrailingStopState = {
             stateKey,
@@ -41,11 +64,12 @@ export async function POST(req: Request) { // Đổi tên thành POST, nhận Re
             status: needsActivation ? 'pending_activation' : 'active', // Status dựa vào activation
             activationPrice: needsActivation ? activationPrice : undefined,
             symbol,
-            entryPrice,
-            highestPrice: entryPrice, // Bắt đầu từ entryPrice
+            entryPrice: actualEntryPrice, // Sử dụng giá thực tế từ lệnh mua
+            highestPrice: actualEntryPrice, // Bắt đầu từ actualEntryPrice
             trailingPercent,
             quantity,
             checkInterval: undefined,
+            buyOrderId, // Lưu ID lệnh mua
         };
         updateTrailingStopState(stateKey, initialState); // Thêm vào Map
         console.log(`[${stateKey}] Starting simulation for ${symbol}. Status: ${initialState.status}${needsActivation ? ` (Activation @ ${activationPrice})` : ''}`);
@@ -78,14 +102,36 @@ export async function POST(req: Request) { // Đổi tên thành POST, nhận Re
                 if (currentStatus === 'pending_activation' && state.activationPrice) {
                     console.log(`[${stateKey}] Pending activation. Current: ${currentPrice}, Activation: ${state.activationPrice}`);
                     if (currentPrice >= state.activationPrice) {
-                        console.log(`[${stateKey}] *** ACTIVATED *** at price ${currentPrice}`);
-                        // Cập nhật state: chuyển status, đặt lại highestPrice từ giá hiện tại
-                        updateTrailingStopState(stateKey, {
-                            ...state,
-                            status: 'active',
-                            highestPrice: currentPrice, // Bắt đầu theo dõi từ giá kích hoạt
-                        });
-                        currentStatus = 'active'; // Chuyển sang xử lý active ngay trong lần lặp này
+                        console.log(`[${stateKey}] *** ACTIVATION TRIGGERED *** at price ${currentPrice}`);
+
+                        // *** THỰC HIỆN LỆNH MUA KHI ACTIVATION ***
+                        try {
+                            console.log(`[${stateKey}] Placing BUY order after activation for ${state.quantity} ${state.symbol}`);
+                            const buyOrder: Order = await exchange.createMarketBuyOrder(state.symbol, state.quantity);
+                            const actualEntryPrice = buyOrder.average || buyOrder.price || currentPrice;
+
+                            console.log(`[${stateKey}] BUY order placed after activation: ID ${buyOrder.id}, Entry Price: ${actualEntryPrice}`);
+
+                            // Cập nhật state với thông tin lệnh mua và chuyển sang active
+                            updateTrailingStopState(stateKey, {
+                                ...state,
+                                status: 'active',
+                                buyOrderId: buyOrder.id,
+                                entryPrice: actualEntryPrice,
+                                highestPrice: actualEntryPrice // Bắt đầu theo dõi từ giá entry thực tế
+                            });
+                            currentStatus = 'active'; // Chuyển sang xử lý active ngay trong lần lặp này
+                        } catch (buyError: any) {
+                            console.error(`[${stateKey}] FAILED to place BUY order after activation:`, buyError.message || buyError);
+                            updateTrailingStopState(stateKey, {
+                                ...state,
+                                status: 'error',
+                                errorMessage: `Buy order failed: ${buyError.message}`
+                            });
+                            clearInterval(intervalId);
+                            setTimeout(() => removeTrailingStopState(stateKey), REMOVAL_DELAY);
+                            return;
+                        }
                     } else {
                         return; // Chưa đạt giá kích hoạt, đợi lần sau
                     }

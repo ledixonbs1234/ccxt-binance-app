@@ -30,6 +30,7 @@ import {
   ShrinkOutlined
 } from '@ant-design/icons';
 import { TrailingStopPosition, TrailingStopAlert, TrailingStopPerformance } from '../types/trailingStop';
+import { formatSmartPrice, isMicroCapToken } from '../lib/priceFormatter';
 
 const { Text, Title } = Typography;
 
@@ -54,9 +55,9 @@ export default function EnhancedTrailingStopPanel({
   const [expandedPosition, setExpandedPosition] = useState<string | null>(null);
 
   const formatCurrency = (value: number, decimals = 2) => {
-    // Handle micro-cap cryptocurrencies like PEPE with proper precision
-    if (value < 0.01) {
-      return `$${value.toFixed(8)}`;
+    // Sử dụng smart formatting cho micro-cap tokens
+    if (isMicroCapToken(value)) {
+      return formatSmartPrice(value, { includeSymbol: true });
     }
 
     return new Intl.NumberFormat('en-US', {
@@ -72,21 +73,16 @@ export default function EnhancedTrailingStopPanel({
   };
 
   const formatPriceBySymbol = (value: number, symbol: string) => {
+    // Sử dụng smart formatting thay vì hardcode decimal places
+    if (isMicroCapToken(value)) {
+      return formatSmartPrice(value, { includeSymbol: true });
+    }
+
+    // Cho các token không phải micro-cap, sử dụng formatCurrency với precision phù hợp
     const baseCurrency = symbol.split('/')[0];
+    const isHighValueToken = ['BTC', 'ETH', 'SOL'].includes(baseCurrency);
+    const decimals = isHighValueToken ? 2 : 4;
 
-    // Define appropriate decimal places for different cryptocurrencies
-    const decimalPlaces: { [key: string]: number } = {
-      'PEPE': 8,
-      'SHIB': 8,
-      'DOGE': 6,
-      'BTC': 2,
-      'ETH': 2,
-      'ADA': 4,
-      'SOL': 2,
-      'MATIC': 4
-    };
-
-    const decimals = decimalPlaces[baseCurrency] || 4;
     return formatCurrency(value, decimals);
   };
 

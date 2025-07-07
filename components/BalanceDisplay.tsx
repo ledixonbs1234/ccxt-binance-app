@@ -1,9 +1,10 @@
 // File: components/BalanceDisplay.tsx
 'use client';
 
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, memo, useMemo } from "react";
 import { ArrowPathIcon, WalletIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import LoadingOverlay from './LoadingOverlay';
+import { BalanceSkeleton } from './skeletons/MarketSkeleton';
 
 type Balance = {
   free?: Record<string, number>;
@@ -29,7 +30,7 @@ const formatAmount = (amount: number, coin: string): string => {
 };
 
 
-export default function BalanceDisplay() {
+const BalanceDisplay = memo(() => {
   const [balance, setBalance] = useState<Balance | null>(null);
   const [loading, setLoading] = useState(true); // Bắt đầu là true
   const [error, setError] = useState<string | null>(null);
@@ -87,6 +88,11 @@ export default function BalanceDisplay() {
   useEffect(() => {
     fetchBalance();
   }, [fetchBalance]); // Chạy fetchBalance khi component mount
+
+  // Show skeleton during initial loading
+  if (loading && !balance) {
+    return <BalanceSkeleton />;
+  }
 
   return (
     <LoadingOverlay isLoading={loading} message="Loading balance..." delay={200}>
@@ -169,4 +175,8 @@ export default function BalanceDisplay() {
       </div>
     </LoadingOverlay>
   );
-}
+});
+
+BalanceDisplay.displayName = 'BalanceDisplay';
+
+export default BalanceDisplay;

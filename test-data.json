@@ -1,0 +1,7 @@
+{
+    "symbol": "BTCUSDT",
+    "quantity": 0.001,
+    "trailingPercent": 2.0,
+    "entryPrice": 45000,
+    "useActivationPrice": false
+}

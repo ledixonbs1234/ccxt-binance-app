@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
             id: testPosition.id,
             symbol: testPosition.symbol,
             entryPrice: testPosition.entryPrice,
-            currentStopPrice: testPosition.currentStopPrice,
+            stopLossPrice: testPosition.stopLossPrice,
             trailingPercent: testPosition.trailingPercent,
             quantity: testPosition.quantity
           }

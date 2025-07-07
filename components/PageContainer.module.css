@@ -1,0 +1,99 @@
+/* PageContainer responsive styles */
+.container {
+  min-height: 100vh;
+  background: var(--background);
+}
+
+.content {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.contentCompact {
+  padding: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.contentWide {
+  padding: 32px;
+  max-width: 1600px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .content {
+    padding: 16px;
+  }
+  
+  .contentCompact {
+    padding: 12px;
+  }
+  
+  .contentWide {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .content {
+    padding: 12px;
+  }
+  
+  .contentCompact {
+    padding: 8px;
+  }
+  
+  .contentWide {
+    padding: 16px;
+  }
+}
+
+/* Title responsive styles */
+.titleContainer {
+  margin-bottom: 24px;
+}
+
+.titleContainer h2 {
+  color: var(--foreground);
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  color: var(--muted);
+  font-size: 16px;
+  margin-bottom: 0;
+}
+
+@media (max-width: 768px) {
+  .titleContainer {
+    margin-bottom: 16px;
+  }
+  
+  .titleContainer h2 {
+    font-size: 20px;
+  }
+  
+  .subtitle {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .titleContainer {
+    margin-bottom: 12px;
+  }
+  
+  .titleContainer h2 {
+    font-size: 18px;
+  }
+  
+  .subtitle {
+    font-size: 13px;
+  }
+}

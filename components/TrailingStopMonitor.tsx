@@ -6,6 +6,7 @@ import { AdjustmentsHorizontalIcon, ArrowPathIcon, ExclamationTriangleIcon, Chec
 import { XCircleIcon as XCircleSolid } from '@heroicons/react/20/solid';
 import { generateUniqueId } from '../lib/utils';
 import VSCodeCard from './VSCodeCard';
+import { formatSmartPrice, isMicroCapToken } from '../lib/priceFormatter';
 
 // Cập nhật interface
 interface ActiveSimulation {
@@ -19,7 +20,8 @@ interface ActiveSimulation {
     status?: 'pending_activation' | 'active' | 'triggered' | 'error';
     triggeredAt?: number;
     triggerPrice?: number;
-    sellOrderId?: string;
+    buyOrderId?: string; // ID lệnh mua ban đầu
+    sellOrderId?: string; // ID lệnh bán
     errorMessage?: string;
 }
 // Thêm prop type
@@ -55,9 +57,14 @@ const formatNum = (num: number | undefined | null, digits = 8, minDigits = 2) =>
 };
 const MAX_FRACTION_DIGITS = 20; // Định nghĩa hằng số
 
-// --- BỔ SUNG HÀM formatCurrency ---
+// --- ENHANCED formatCurrency với Smart Precision ---
 const formatCurrency = (value: number | undefined | null, currency = 'USD', digits = 2) => {
     if (value === undefined || value === null || isNaN(value)) return '___';
+
+    // Sử dụng smart formatting cho micro-cap tokens
+    if (isMicroCapToken(value)) {
+        return formatSmartPrice(value, { includeSymbol: true });
+    }
 
     // Chuẩn hóa mã tiền tệ: Nếu là USDT hoặc các stablecoin tương tự, dùng USD
     let displayCurrency = currency.toUpperCase();
@@ -66,7 +73,7 @@ const formatCurrency = (value: number | undefined | null, currency = 'USD', digi
     }
 
     try {
-        return value.toLocaleString('en-US', { // Hoặc 'vi-VN'
+        return value.toLocaleString('en-US', {
             style: 'currency',
             currency: displayCurrency,
             minimumFractionDigits: digits,
@@ -78,7 +85,7 @@ const formatCurrency = (value: number | undefined | null, currency = 'USD', digi
         return `${value.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })} ${currency}`;
     }
 };
-// --- KẾT THÚC BỔ SUNG ---
+// --- KẾT THÚC ENHANCED formatCurrency ---
 
 export default function TrailingStopMonitor({ onSimulationTriggered }: TrailingStopMonitorProps) {
     const [simulations, setSimulations] = useState<ActiveSimulation[]>([]);
@@ -274,6 +281,7 @@ export default function TrailingStopMonitor({ onSimulationTriggered }: TrailingS
                                     <th>Trailing %</th>
                                     <th>Giá cao nhất</th>
                                     <th>Giá Stop / Trạng thái</th>
+                                    <th>Lệnh</th>
                                     <th className="text-right">Hành động</th>
                                 </tr>
                             </thead>
@@ -330,6 +338,25 @@ export default function TrailingStopMonitor({ onSimulationTriggered }: TrailingS
                                                         Lỗi đặt lệnh
                                                     </span>
                                                 )}
+                                            </td>
+                                            <td>
+                                                <div className="text-xs space-y-1">
+                                                    {sim.buyOrderId && (
+                                                        <div className="badge badge-success badge-sm">
+                                                            Mua: {sim.buyOrderId.substring(0, 8)}...
+                                                        </div>
+                                                    )}
+                                                    {sim.sellOrderId && (
+                                                        <div className="badge badge-info badge-sm">
+                                                            Bán: {sim.sellOrderId.substring(0, 8)}...
+                                                        </div>
+                                                    )}
+                                                    {isPending && !sim.buyOrderId && (
+                                                        <div className="badge badge-muted badge-sm">
+                                                            Chờ mua
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="text-right">
                                                 {(isActive || isPending) && (

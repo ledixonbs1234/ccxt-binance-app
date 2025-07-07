@@ -14,6 +14,19 @@ export interface TrailingStopPosition {
   trailingPercent: number;
   atrMultiplier?: number;
   supportResistanceLevel?: number;
+
+  // Advanced Strategy Parameters
+  fibonacciLevel?: number;          // 0.236, 0.382, 0.5, 0.618, 0.786
+  bollingerPeriod?: number;         // Period for Bollinger Bands calculation
+  bollingerStdDev?: number;         // Standard deviation multiplier
+  volumeProfilePeriod?: number;     // Period for volume profile analysis
+  smartMoneyStructure?: 'bos' | 'choch' | 'liquidity'; // Break of Structure, Change of Character, Liquidity
+  ichimokuSettings?: {
+    tenkanSen: number;
+    kijunSen: number;
+    senkouSpanB: number;
+  };
+  pivotPointType?: 'standard' | 'fibonacci' | 'woodie' | 'camarilla';
   
   // Risk Management
   maxLossPercent: number;
@@ -63,31 +76,76 @@ export interface ChartZone {
   opacity: number;
 }
 
-export type TrailingStopStrategy = 
+export type TrailingStopStrategy =
   | 'percentage'           // Traditional percentage-based
   | 'atr'                 // ATR (Average True Range) based
   | 'support_resistance'  // Support/Resistance levels
   | 'dynamic'             // Dynamic based on volatility
-  | 'hybrid';             // Combination of multiple strategies
+  | 'hybrid'              // Combination of multiple strategies
+  | 'fibonacci'           // Fibonacci retracement levels
+  | 'bollinger_bands'     // Bollinger Bands based
+  | 'volume_profile'      // Volume Profile based
+  | 'smart_money'         // Smart Money Concepts (SMC)
+  | 'ichimoku'            // Ichimoku Cloud based
+  | 'pivot_points';       // Pivot Points based
 
 export interface TrailingStopSettings {
   // Default Strategy Settings
   defaultStrategy: TrailingStopStrategy;
   defaultTrailingPercent: number;
   defaultMaxLoss: number;
-  
+
   // ATR Settings
   atrPeriod: number;
   atrMultiplier: number;
-  
+
   // Dynamic Settings
   volatilityLookback: number;
   volatilityMultiplier: number;
-  
+
+  // Advanced Strategy Settings
+  fibonacciSettings: {
+    levels: number[];           // [0.236, 0.382, 0.5, 0.618, 0.786]
+    lookbackPeriod: number;     // Period to find swing high/low
+    defaultLevel: number;       // Default fibonacci level to use
+  };
+
+  bollingerSettings: {
+    period: number;             // Moving average period
+    stdDev: number;             // Standard deviation multiplier
+    useUpperBand: boolean;      // Use upper band for resistance
+    useLowerBand: boolean;      // Use lower band for support
+  };
+
+  volumeProfileSettings: {
+    period: number;             // Analysis period
+    valueAreaPercent: number;   // Value area percentage (typically 70%)
+    pocSensitivity: number;     // Point of Control sensitivity
+  };
+
+  smartMoneySettings: {
+    structureTimeframe: string; // Timeframe for structure analysis
+    liquidityLevels: number;    // Number of liquidity levels to track
+    orderBlockPeriod: number;   // Period for order block identification
+  };
+
+  ichimokuSettings: {
+    tenkanSen: number;          // Conversion line period
+    kijunSen: number;           // Base line period
+    senkouSpanB: number;        // Leading span B period
+    displacement: number;       // Cloud displacement
+  };
+
+  pivotSettings: {
+    type: 'standard' | 'fibonacci' | 'woodie' | 'camarilla';
+    period: 'daily' | 'weekly' | 'monthly';
+    levels: number;             // Number of support/resistance levels
+  };
+
   // Risk Management
   maxPositions: number;
   maxRiskPerPosition: number;
-  
+
   // Performance Optimization
   updateInterval: number;
   priceChangeThreshold: number;
@@ -103,9 +161,56 @@ export interface MarketVolatility {
   resistanceLevel?: number;
 }
 
+// Strategy Metadata for UI and Configuration
+export interface StrategyMetadata {
+  id: TrailingStopStrategy;
+  name: string;
+  nameVi: string;
+  description: string;
+  descriptionVi: string;
+  complexity: 'beginner' | 'intermediate' | 'advanced' | 'expert';
+  marketCondition: 'trending' | 'ranging' | 'volatile' | 'any';
+  requiredIndicators: string[];
+  parameters: StrategyParameter[];
+  pros: string[];
+  cons: string[];
+  bestTimeframes: string[];
+  riskLevel: 'low' | 'medium' | 'high';
+}
+
+export interface StrategyParameter {
+  key: string;
+  name: string;
+  nameVi: string;
+  type: 'number' | 'select' | 'boolean' | 'range';
+  defaultValue: any;
+  min?: number;
+  max?: number;
+  step?: number;
+  options?: { value: any; label: string; labelVi: string }[];
+  description: string;
+  descriptionVi: string;
+  required: boolean;
+}
+
+// Strategy Performance Metrics
+export interface StrategyPerformance {
+  strategy: TrailingStopStrategy;
+  symbol: string;
+  timeframe: string;
+  totalTrades: number;
+  winRate: number;
+  avgProfit: number;
+  avgLoss: number;
+  profitFactor: number;
+  maxDrawdown: number;
+  sharpeRatio: number;
+  lastUpdated: number;
+}
+
 export interface TrailingStopAlert {
   id: string;
-  type: 'adjustment' | 'trigger' | 'activation' | 'warning';
+  type: 'adjustment' | 'trigger' | 'activation' | 'warning' | 'strategy_switch';
   message: string;
   position: TrailingStopPosition;
   timestamp: number;

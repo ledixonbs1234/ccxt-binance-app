@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Notification Fix</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #1890ff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #40a9ff;
+        }
+        .success { color: #52c41a; }
+        .error { color: #ff4d4f; }
+        .info { color: #1890ff; }
+        .warning { color: #faad14; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Ant Design Notification Fix</h1>
+    
+    <div class="test-section">
+        <h2>✅ Đã sửa thành công</h2>
+        <p><strong>Vấn đề:</strong> Static notification methods không thể consume React context cho dynamic theming</p>
+        <p><strong>Giải pháp:</strong> Sử dụng App.useApp() hook thay vì static methods</p>
+        
+        <h3>Các thay đổi đã thực hiện:</h3>
+        <ul>
+            <li>✅ Thay thế <code>import { notification }</code> với <code>import { App }</code></li>
+            <li>✅ Sử dụng <code>const { notification } = App.useApp()</code> hook</li>
+            <li>✅ Cập nhật tất cả notification messages sang tiếng Việt</li>
+            <li>✅ Tạo wrapper component để sử dụng App context</li>
+            <li>✅ Giữ nguyên App component trong providers.tsx</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 Cấu trúc đã sửa</h2>
+        <pre><code>// Trước (Static methods - gây warning)
+import { notification } from 'antd';
+notification.info({ message: 'Test' });
+
+// Sau (App hook - không warning)
+import { App } from 'antd';
+const { notification } = App.useApp();
+notification.info({ message: 'Test' });</code></pre>
+    </div>
+
+    <div class="test-section">
+        <h2>🎯 Test Cases</h2>
+        <p>Để test notification hoạt động đúng:</p>
+        <ol>
+            <li>Mở trang <a href="http://localhost:3001/enhanced-trailing-stop" target="_blank">Enhanced Trailing Stop</a></li>
+            <li>Click nút "Start/Stop Monitoring" - sẽ hiện notification tiếng Việt</li>
+            <li>Tạo position mới - sẽ hiện notification thành công</li>
+            <li>Đóng position - sẽ hiện notification đóng thành công</li>
+            <li>Kiểm tra console không còn warning về static function</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>🌙 Theme Support</h2>
+        <p>Notification giờ đây sẽ:</p>
+        <ul>
+            <li>✅ Tự động thay đổi theo dark/light theme</li>
+            <li>✅ Sử dụng màu sắc từ Ant Design theme config</li>
+            <li>✅ Hỗ trợ tiếng Việt đầy đủ</li>
+            <li>✅ Không còn warning trong console</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>📝 Files đã sửa</h2>
+        <ul>
+            <li><code>app/enhanced-trailing-stop/page.tsx</code> - Thay static methods với App hook</li>
+            <li><code>app/providers.tsx</code> - Đã có App component wrapper</li>
+            <li>Các notification messages đã được dịch sang tiếng Việt</li>
+        </ul>
+    </div>
+
+    <script>
+        console.log('🧪 Notification Fix Test Page Loaded');
+        console.log('✅ Static notification methods đã được thay thế với App.useApp() hook');
+        console.log('🌙 Theme context giờ đây hoạt động đúng với notifications');
+        console.log('🇻🇳 Vietnamese language support đã được thêm vào');
+    </script>
+</body>
+</html>

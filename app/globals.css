@@ -124,3 +124,305 @@ body {
 @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* TimeframeSelector Styles */
+.timeframe-selector-dropdown .ant-select-dropdown {
+  background: var(--card-bg) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+.timeframe-selector-dropdown .ant-select-item {
+  color: var(--foreground) !important;
+  padding: 8px 12px !important;
+}
+
+.timeframe-selector-dropdown .ant-select-item:hover {
+  background: var(--hover) !important;
+}
+
+.timeframe-selector-dropdown .ant-select-item-option-selected {
+  background: var(--accent) !important;
+  color: white !important;
+}
+
+.timeframe-segmented .ant-segmented {
+  background: var(--card-bg) !important;
+  border: 1px solid var(--border) !important;
+}
+
+.timeframe-segmented .ant-segmented-item {
+  color: var(--foreground) !important;
+}
+
+.timeframe-segmented .ant-segmented-item:hover {
+  color: var(--accent) !important;
+}
+
+.timeframe-segmented .ant-segmented-item-selected {
+  background: var(--accent) !important;
+  color: white !important;
+}
+
+.timeframe-compact .ant-segmented-item {
+  min-width: 32px !important;
+  padding: 4px 8px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}
+
+/* Strategy Selector Styling */
+.strategy-details {
+  background: var(--card-bg) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+}
+
+.strategy-details .ant-card-body {
+  padding: 16px !important;
+}
+
+.strategy-details .ant-typography-title {
+  color: var(--foreground) !important;
+  margin-bottom: 8px !important;
+}
+
+.strategy-details .ant-typography-paragraph {
+  color: var(--muted) !important;
+  margin-bottom: 12px !important;
+}
+
+.strategy-details .ant-tag {
+  border-radius: 4px !important;
+  font-size: 11px !important;
+  padding: 2px 6px !important;
+}
+
+/* Strategy Config Panel Styling */
+.ant-form-item-label > label {
+  color: var(--foreground) !important;
+  font-weight: 500 !important;
+}
+
+.ant-form-item-explain-error {
+  color: var(--error) !important;
+}
+
+.ant-input-number {
+  background: var(--input-bg) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 6px !important;
+  color: var(--foreground) !important;
+}
+
+.ant-input-number:hover {
+  border-color: var(--accent) !important;
+}
+
+.ant-input-number:focus,
+.ant-input-number-focused {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+.ant-slider {
+  margin: 16px 0 !important;
+}
+
+.ant-slider-rail {
+  background: var(--border) !important;
+}
+
+.ant-slider-track {
+  background: var(--accent) !important;
+}
+
+.ant-slider-handle {
+  border: 2px solid var(--accent) !important;
+  background: var(--card-bg) !important;
+}
+
+.ant-slider-handle:hover,
+.ant-slider-handle:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 5px rgba(59, 130, 246, 0.12) !important;
+}
+
+.ant-slider-mark-text {
+  color: var(--muted) !important;
+  font-size: 11px !important;
+}
+
+.ant-alert {
+  border-radius: 8px !important;
+  border: 1px solid var(--border) !important;
+}
+
+.ant-alert-info {
+  background: rgba(59, 130, 246, 0.1) !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+.ant-alert-info .ant-alert-message {
+  color: var(--foreground) !important;
+  font-weight: 500 !important;
+}
+
+.ant-alert-info .ant-alert-description {
+  color: var(--muted) !important;
+}
+
+/* Advanced Trailing Stop Demo Styles */
+.advanced-trailing-stop-demo .ant-card {
+  background: var(--card-bg) !important;
+  border: 1px solid var(--border) !important;
+}
+
+.advanced-trailing-stop-demo .ant-card-head {
+  border-bottom: 1px solid var(--border) !important;
+}
+
+.advanced-trailing-stop-demo .ant-card-head-title {
+  color: var(--foreground) !important;
+}
+
+.advanced-trailing-stop-demo .performance-item {
+  padding: 8px 0;
+}
+
+.advanced-trailing-stop-demo .performance-item:hover {
+  background: var(--hover);
+  border-radius: 4px;
+  padding: 8px;
+  margin: 0 -8px;
+}
+
+.advanced-trailing-stop-demo .ant-statistic-title {
+  color: var(--muted) !important;
+  font-size: 10px !important;
+  margin-bottom: 2px !important;
+}
+
+.advanced-trailing-stop-demo .ant-statistic-content {
+  font-size: 12px !important;
+}
+
+.advanced-trailing-stop-demo .ant-badge-count {
+  min-width: 16px !important;
+  height: 16px !important;
+  line-height: 16px !important;
+  font-size: 10px !important;
+}
+
+.advanced-trailing-stop-demo .ant-alert {
+  background: var(--card-bg) !important;
+  border: 1px solid var(--border) !important;
+}
+
+.advanced-trailing-stop-demo .ant-alert-message {
+  color: var(--foreground) !important;
+}
+
+.advanced-trailing-stop-demo .ant-alert-description {
+  color: var(--muted) !important;
+}
+
+/* Documentation Page Styles */
+.documentation-content {
+  line-height: 1.7;
+}
+
+.documentation-content h1,
+.documentation-content h2,
+.documentation-content h3,
+.documentation-content h4 {
+  scroll-margin-top: 80px;
+}
+
+.documentation-content pre {
+  background: var(--card-bg) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  margin: 16px 0 !important;
+  overflow-x: auto;
+}
+
+.documentation-content code {
+  font-family: 'Fira Code', 'Monaco', 'Consolas', monospace !important;
+  font-size: 13px !important;
+}
+
+.documentation-content blockquote {
+  margin: 16px 0;
+  padding: 12px 16px;
+  background: rgba(59, 130, 246, 0.1);
+  border-left: 4px solid var(--accent);
+  border-radius: 4px;
+}
+
+.documentation-content blockquote p {
+  margin: 0 !important;
+  color: var(--foreground) !important;
+}
+
+.documentation-content strong {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.documentation-content em {
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* Anchor Navigation Styles */
+.ant-anchor {
+  background: transparent !important;
+}
+
+.ant-anchor-ink {
+  background: var(--accent) !important;
+}
+
+.ant-anchor-link {
+  padding: 4px 0 !important;
+}
+
+.ant-anchor-link-title {
+  color: var(--foreground) !important;
+  font-size: 13px !important;
+  line-height: 1.4 !important;
+}
+
+.ant-anchor-link-title:hover {
+  color: var(--accent) !important;
+}
+
+.ant-anchor-link-active > .ant-anchor-link-title {
+  color: var(--accent) !important;
+  font-weight: 500 !important;
+}
+
+/* Sidebar Styles */
+.ant-layout-sider {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.ant-layout-sider::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ant-layout-sider::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ant-layout-sider::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.ant-layout-sider::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}

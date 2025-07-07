@@ -58,15 +58,16 @@ export class TradingApiService {
         return cached.price;
       }
 
+      // Sử dụng API route nội bộ của Next.js
       const baseUrl = typeof window !== 'undefined' ? '' : 'http://localhost:3000';
       const response = await fetch(`${baseUrl}/api/ticker?symbol=${encodeURIComponent(symbol)}`);
-      
+
       if (!response.ok) {
         throw new Error(`API ticker error: ${response.status} ${response.statusText}`);
       }
 
       const tickerData: TickerData = await response.json();
-      
+
       if (!tickerData.last || isNaN(tickerData.last)) {
         throw new Error(`Invalid price data for ${symbol}`);
       }
@@ -80,7 +81,7 @@ export class TradingApiService {
       return tickerData.last;
     } catch (error) {
       console.error(`Error fetching current price for ${symbol}:`, error);
-      
+
       // Fallback với giá mặc định dựa trên symbol
       return this.getFallbackPrice(symbol);
     }
@@ -91,13 +92,30 @@ export class TradingApiService {
    */
   async getTickerData(symbol: string): Promise<TickerData> {
     try {
-      const response = await fetch(`/api/ticker?symbol=${encodeURIComponent(symbol)}`);
-      
+      // Sử dụng API route nội bộ của Next.js
+      const baseUrl = typeof window !== 'undefined' ? '' : 'http://localhost:3000';
+      const response = await fetch(`${baseUrl}/api/ticker?symbol=${encodeURIComponent(symbol)}`);
+
       if (!response.ok) {
         throw new Error(`API ticker error: ${response.status} ${response.statusText}`);
       }
 
-      const tickerData: TickerData = await response.json();
+      const rawTickerData = await response.json();
+
+      // Map CCXT ticker data to our TickerData interface
+      const tickerData: TickerData = {
+        symbol: rawTickerData.symbol,
+        last: rawTickerData.last || rawTickerData.close,
+        bid: rawTickerData.bid,
+        ask: rawTickerData.ask,
+        high: rawTickerData.high,
+        low: rawTickerData.low,
+        volume: rawTickerData.baseVolume,
+        quoteVolume: rawTickerData.quoteVolume,
+        percentage: rawTickerData.percentage,
+        timestamp: rawTickerData.timestamp
+      };
+
       return tickerData;
     } catch (error) {
       console.error(`Error fetching ticker data for ${symbol}:`, error);
@@ -110,26 +128,49 @@ export class TradingApiService {
    */
   async getCandleData(symbol: string, timeframe: string = '1h', limit: number = 100): Promise<CandleData[]> {
     try {
+      // Sử dụng API route nội bộ của Next.js
       const baseUrl = typeof window !== 'undefined' ? '' : 'http://localhost:3000';
       const response = await fetch(
         `${baseUrl}/api/candles?symbol=${encodeURIComponent(symbol)}&timeframe=${timeframe}&limit=${limit}`
       );
-      
+
       if (!response.ok) {
         throw new Error(`API candles error: ${response.status} ${response.statusText}`);
       }
 
-      const rawData: number[][] = await response.json();
-      
+      const responseData = await response.json();
+
+      // Handle API response format: { data: [...], cached: boolean, timestamp: string }
+      let rawData: number[][];
+      if (responseData.data && Array.isArray(responseData.data)) {
+        rawData = responseData.data;
+      } else if (Array.isArray(responseData)) {
+        // Fallback for direct array response
+        rawData = responseData;
+      } else {
+        throw new Error(`Invalid candle data format received for ${symbol}`);
+      }
+
+      // Validate that rawData is an array
+      if (!Array.isArray(rawData)) {
+        throw new Error(`Expected array of candles for ${symbol}, got ${typeof rawData}`);
+      }
+
       // Chuyển đổi từ format CCXT [timestamp, open, high, low, close, volume]
-      const candleData: CandleData[] = rawData.map(candle => ({
-        timestamp: candle[0],
-        open: candle[1],
-        high: candle[2],
-        low: candle[3],
-        close: candle[4],
-        volume: candle[5]
-      }));
+      const candleData: CandleData[] = rawData.map((candle, index) => {
+        if (!Array.isArray(candle) || candle.length < 6) {
+          throw new Error(`Invalid candle data at index ${index} for ${symbol}: expected array with 6 elements, got ${candle}`);
+        }
+
+        return {
+          timestamp: candle[0],
+          open: candle[1],
+          high: candle[2],
+          low: candle[3],
+          close: candle[4],
+          volume: candle[5]
+        };
+      });
 
       return candleData;
     } catch (error) {
@@ -309,8 +350,8 @@ export class TradingApiService {
     const baseCurrency = symbol.split('/')[0];
     
     const fallbackPrices: Record<string, number> = {
-      'BTC': 45000,
-      'ETH': 3200,
+      'BTC': 109000,  // Updated to current market price ~$109k
+      'ETH': 3800,    // Updated to current market price
       'PEPE': 0.00002,
       'DOGE': 0.08,
       'SHIB': 0.000012,

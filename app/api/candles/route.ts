@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ccxt from 'ccxt';
+import { candleCache, CacheKeys } from '@/lib/cacheService';
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,9 +31,35 @@ export async function GET(request: NextRequest) {
       }, { status: 400 });
     }
 
+    // Check cache first
+    const cacheKey = CacheKeys.candles(symbol, timeframe, limit);
+    const cachedCandles = candleCache.get(cacheKey);
+
+    if (cachedCandles) {
+      console.log(`[CANDLES] Cache hit for ${symbol} ${timeframe}`);
+      return NextResponse.json({
+        data: cachedCandles,
+        cached: true,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    console.log(`[CANDLES] Cache miss, fetching ${symbol} ${timeframe} from API`);
+    const startTime = Date.now();
+
     const ohlcv = await exchange.fetchOHLCV(symbol, timeframe, undefined, limit);
-    
-    return NextResponse.json(ohlcv);
+    const endTime = Date.now();
+
+    console.log(`[CANDLES] Fetched ${symbol} ${timeframe} in ${endTime - startTime}ms`);
+
+    // Cache for 20 seconds
+    candleCache.set(cacheKey, ohlcv, 20000);
+
+    return NextResponse.json({
+      data: ohlcv,
+      cached: false,
+      timestamp: new Date().toISOString()
+    });
   } catch (error: any) {
     console.error('Error fetching OHLCV data:', error);
     return NextResponse.json(

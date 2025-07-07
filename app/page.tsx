@@ -6,11 +6,11 @@ import BalanceDisplay from '../components/BalanceDisplay';
 import OrderForm from '../components/OrderForm';
 import OrderHistory from '../components/OrderHistory';
 import TrailingStopMonitor from '../components/TrailingStopMonitor';
+import TrailingStopTester from '../components/TrailingStopTester';
 import SmartTrailingMonitor from '../components/SmartTrailingMonitor';
-import CoinSelector from '../components/CoinSelector';
 import CandlestickChart from '../components/CandlestickChart';
 import SimplePriceChart from '../components/SimplePriceChart';
-import MarketOverview from '../components/MarketOverview';
+import MarketSelector from '../components/MarketSelector';
 import VSCodeLayout from '../components/VSCodeLayout';
 import VSCodeCard from '../components/VSCodeCard';
 import { useTranslations } from '../contexts/LanguageContext';
@@ -40,8 +40,7 @@ function TradingDashboard() {
       case 'dashboard':
         return (
           <div className="space-y-6 animate-fade-in">
-            <MarketOverview />
-            <CoinSelector />
+            <MarketSelector />
             <VSCodeCard
               title={t.trading.priceChart}
               subtitle={`${t.trading.realTimeAnalysis} ${selectedCoin}/USDT`}
@@ -67,6 +66,7 @@ function TradingDashboard() {
             <div className="lg:col-span-2 space-y-6">
               <OrderForm onOrderSuccess={handleDataRefresh} onSimulationStartSuccess={handleDataRefresh} />
               <TrailingStopMonitor key={monitorKey} onSimulationTriggered={handleDataRefresh} />
+              <TrailingStopTester />
             </div>
             <div className="lg:col-span-1 space-y-6">
               <BalanceDisplay key={balanceUpdateKey} />
