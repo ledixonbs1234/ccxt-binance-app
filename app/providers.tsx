@@ -10,9 +10,14 @@ import viVN from 'antd/locale/vi_VN';
 import { integratedLightTheme, integratedDarkTheme } from '../lib/antd-theme';
 import { TradingProvider } from '../contexts/TradingContext';
 import { LanguageProvider } from '../contexts/LanguageContext';
-import { UserProvider } from '../contexts/integrated/UserContext';
-import { MarketProvider } from '../contexts/integrated/MarketContext';
-import { BacktestProvider } from '../contexts/integrated/BacktestContext';
+import {
+  UserProvider,
+  MarketProvider,
+  BacktestProvider,
+  EnhancedTradingProvider,
+  NotificationProvider,
+  WebSocketProvider
+} from '../contexts/integrated';
 
 // Import the React 19 compatibility patch
 import '@ant-design/v5-patch-for-react-19';
@@ -29,7 +34,7 @@ function AntdThemeProvider({ children }: { children: React.ReactNode }) {
   // Prevent hydration mismatch
   if (!mounted) {
     return (
-      <ConfigProvider theme={lightTheme} locale={viVN}>
+      <ConfigProvider theme={integratedLightTheme} locale={viVN}>
         <App>
           {children}
         </App>
@@ -38,7 +43,7 @@ function AntdThemeProvider({ children }: { children: React.ReactNode }) {
   }
 
   const currentTheme = theme === 'system' ? systemTheme : theme;
-  const antdTheme = currentTheme === 'dark' ? darkTheme : lightTheme;
+  const antdTheme = currentTheme === 'dark' ? integratedDarkTheme : integratedLightTheme;
 
   return (
     <ConfigProvider theme={antdTheme} locale={viVN}>
@@ -62,9 +67,21 @@ export function ThemeProvider({ children, ...props }: React.ComponentProps<typeo
        >
         <AntdThemeProvider>
           <LanguageProvider defaultLanguage="vi">
-            <TradingProvider>
-              {children}
-            </TradingProvider>
+            <UserProvider>
+              <NotificationProvider>
+                <WebSocketProvider>
+                  <MarketProvider>
+                    <TradingProvider>
+                      <EnhancedTradingProvider>
+                        <BacktestProvider>
+                          {children}
+                        </BacktestProvider>
+                      </EnhancedTradingProvider>
+                    </TradingProvider>
+                  </MarketProvider>
+                </WebSocketProvider>
+              </NotificationProvider>
+            </UserProvider>
           </LanguageProvider>
         </AntdThemeProvider>
       </NextThemesProvider>
