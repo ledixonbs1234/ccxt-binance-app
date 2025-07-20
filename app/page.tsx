@@ -96,6 +96,20 @@ function TradingDashboard() {
           </div>
         );
 
+      case 'ai-backtesting':
+        // Redirect to the AI backtesting page
+        if (typeof window !== 'undefined') {
+          window.location.href = '/ai-backtesting';
+        }
+        return (
+          <div className="h-full flex items-center justify-center animate-fade-in">
+            <VSCodeCard className="text-center w-full max-w-lg">
+              <h2 className="text-2xl font-bold mb-2">🤖 AI Backtesting</h2>
+              <p className="text-muted">Redirecting to AI backtesting system...</p>
+            </VSCodeCard>
+          </div>
+        );
+
       // Placeholder for future sections
       case 'portfolio':
       case 'analytics':

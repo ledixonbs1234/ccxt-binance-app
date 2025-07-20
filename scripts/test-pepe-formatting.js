@@ -1,5 +1,5 @@
 // Test script for PEPE formatting functions
-const { formatPrice, formatSmartPrice, formatPercentageChange, getSmartPrecision, isMicroCapToken } = require('./lib/priceFormatter.ts');
+const { formatPrice, formatSmartPrice, formatPercentageChange, getSmartPrecision, isMicroCapToken } = require('../lib/priceFormatter.ts');
 
 // Test data based on real PEPE prices
 const testPrices = [

@@ -7,9 +7,12 @@ import { ThemeProvider as NextThemesProvider, useTheme } from 'next-themes';
 import { ConfigProvider, App } from 'antd';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
 import viVN from 'antd/locale/vi_VN';
-import { lightTheme, darkTheme } from '../lib/antd-theme';
+import { integratedLightTheme, integratedDarkTheme } from '../lib/antd-theme';
 import { TradingProvider } from '../contexts/TradingContext';
 import { LanguageProvider } from '../contexts/LanguageContext';
+import { UserProvider } from '../contexts/integrated/UserContext';
+import { MarketProvider } from '../contexts/integrated/MarketContext';
+import { BacktestProvider } from '../contexts/integrated/BacktestContext';
 
 // Import the React 19 compatibility patch
 import '@ant-design/v5-patch-for-react-19';

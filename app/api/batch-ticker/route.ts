@@ -1,31 +1,77 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { tradingApiService } from '@/lib/tradingApiService';
 import { priceCache, CacheKeys } from '@/lib/cacheService';
+import { apiErrorHandler } from '@/lib/apiErrorHandler';
+
+// Rate limiting for batch ticker
+const BATCH_RATE_LIMIT = 30; // requests per minute
+const batchRequestCounts = new Map<string, { count: number; resetTime: number }>();
+
+function checkBatchRateLimit(clientId: string): boolean {
+  const now = Date.now();
+  const clientData = batchRequestCounts.get(clientId);
+
+  if (!clientData || now > clientData.resetTime) {
+    batchRequestCounts.set(clientId, { count: 1, resetTime: now + 60000 });
+    return true;
+  }
+
+  if (clientData.count >= BATCH_RATE_LIMIT) {
+    return false;
+  }
+
+  clientData.count++;
+  return true;
+}
 
 export async function GET(request: NextRequest) {
+  const startTime = Date.now();
   try {
     const { searchParams } = new URL(request.url);
     const symbolsParam = searchParams.get('symbols');
-    
+
     if (!symbolsParam) {
-      return NextResponse.json(
-        { error: 'Symbols parameter is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({
+        success: false,
+        error: 'Symbols parameter is required',
+        example: '/api/batch-ticker?symbols=BTC/USDT,ETH/USDT,PEPE/USDT'
+      }, { status: 400 });
     }
 
     // Parse symbols from comma-separated string
-    const symbols = symbolsParam.split(',').map(s => s.trim());
-    
+    const symbols = symbolsParam.split(',').map(s => s.trim()).filter(s => s.length > 0);
+
     if (symbols.length === 0) {
-      return NextResponse.json(
-        { error: 'At least one symbol is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({
+        success: false,
+        error: 'At least one valid symbol is required'
+      }, { status: 400 });
+    }
+
+    if (symbols.length > 20) {
+      return NextResponse.json({
+        success: false,
+        error: 'Too many symbols requested',
+        maxSymbols: 20,
+        providedSymbols: symbols.length
+      }, { status: 400 });
+    }
+
+    // Rate limiting
+    const clientId = request.headers.get('x-forwarded-for') || 'unknown';
+    if (!checkBatchRateLimit(clientId)) {
+      return NextResponse.json({
+        success: false,
+        error: 'Rate limit exceeded for batch ticker API',
+        retryAfter: 60,
+        maxRequestsPerMinute: BATCH_RATE_LIMIT
+      }, {
+        status: 429,
+        headers: { 'Retry-After': '60' }
+      });
     }
 
     console.log(`[BATCH-TICKER] Fetching data for symbols: ${symbols.join(', ')}`);
-    const startTime = Date.now();
 
     // Check cache first
     const cacheKey = CacheKeys.batchTicker(symbols);
@@ -108,17 +154,28 @@ export async function GET(request: NextRequest) {
     // Cache the batch result for 2 seconds
     priceCache.set(cacheKey, response, 2000);
 
-    return NextResponse.json(response);
+    const responseTime = endTime - startTime;
+    return NextResponse.json(response, {
+      headers: {
+        'X-Response-Time': responseTime.toString(),
+        'Cache-Control': 'public, max-age=2'
+      }
+    });
 
   } catch (error) {
     console.error('[BATCH-TICKER] Unexpected error:', error);
-    return NextResponse.json(
-      { 
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error',
-        timestamp: new Date().toISOString()
-      },
-      { status: 500 }
-    );
+    const responseTime = Date.now() - startTime;
+
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Internal server error',
+      timestamp: new Date().toISOString(),
+      responseTime
+    }, {
+      status: 500,
+      headers: {
+        'X-Response-Time': responseTime.toString()
+      }
+    });
   }
 }

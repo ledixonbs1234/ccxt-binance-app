@@ -4,6 +4,7 @@ import {
   removeTrailingStopFromQueue,
   initializeTrailingStopQueue
 } from './trailingStopQueue';
+import { startFallbackMonitoring } from './trailingStopFallback';
 
 export interface TrailingStopState {
     stateKey: string;
@@ -31,15 +32,29 @@ export const activeTrailingStops = new Map<string, TrailingStopState>();
 // Create or update trailing stop state with BullMQ queue integration
 export const updateTrailingStopState = async (key: string, state: TrailingStopState) => {
     try {
-        // 1. Upsert state to Supabase
+        // 1. Upsert state to Supabase (using lowercase column names)
         const { data, error } = await supabase
             .from('trailing_stops')
             .upsert({
-                ...state,
-                stateKey: key,
+                statekey: key,
+                isactive: state.isActive,
+                status: state.status,
+                activationprice: state.activationPrice,
+                symbol: state.symbol,
+                entryprice: state.entryPrice,
+                highestprice: state.highestPrice,
+                trailingpercent: state.trailingPercent,
+                quantity: state.quantity,
+                side: state.side,
+                triggerprice: state.triggerPrice,
+                triggeredat: state.triggeredAt,
+                buyorderid: state.buyOrderId,
+                sellorderid: state.sellOrderId,
+                errormessage: state.errorMessage,
+                strategy: state.strategy,
                 updated_at: new Date().toISOString()
             }, {
-                onConflict: 'stateKey'
+                onConflict: 'statekey'
             })
             .select()
             .single();
@@ -51,17 +66,22 @@ export const updateTrailingStopState = async (key: string, state: TrailingStopSt
 
         // 2. Add to BullMQ queue for monitoring (only for active/pending states)
         if (state.status === 'active' || state.status === 'pending_activation') {
-            await addTrailingStopToQueue({
-                stateKey: key,
-                symbol: state.symbol,
-                entryPrice: state.entryPrice,
-                trailingPercent: state.trailingPercent,
-                quantity: state.quantity,
-                side: state.side,
-                activationPrice: state.activationPrice,
-                status: state.status,
-                strategy: state.strategy
-            });
+            try {
+                await addTrailingStopToQueue({
+                    stateKey: key,
+                    symbol: state.symbol,
+                    entryPrice: state.entryPrice,
+                    trailingPercent: state.trailingPercent,
+                    quantity: state.quantity,
+                    side: state.side,
+                    activationPrice: state.activationPrice,
+                    status: state.status,
+                    strategy: state.strategy
+                });
+            } catch (bullmqError) {
+                console.warn('[TrailingStopState] BullMQ not available, using fallback monitoring:', bullmqError);
+                await startFallbackMonitoring(key);
+            }
         }
 
         // 3. Update deprecated Map for backward compatibility
@@ -90,7 +110,7 @@ export const removeTrailingStopState = async (key: string) => {
                 status: 'cancelled',
                 updated_at: new Date().toISOString()
             })
-            .eq('stateKey', key);
+            .eq('statekey', key);
 
         if (error) {
             console.error(`[TrailingStopState] Error cancelling trailing stop ${key}:`, error);
@@ -103,6 +123,26 @@ export const removeTrailingStopState = async (key: string) => {
         throw error;
     }
 };
+// Helper function to convert database row to TrailingStopState
+const mapDbRowToState = (row: any): TrailingStopState => ({
+    stateKey: row.statekey,
+    isActive: row.isactive,
+    status: row.status,
+    activationPrice: row.activationprice,
+    symbol: row.symbol,
+    entryPrice: row.entryprice,
+    highestPrice: row.highestprice,
+    trailingPercent: row.trailingpercent,
+    quantity: row.quantity,
+    side: row.side,
+    triggerPrice: row.triggerprice,
+    triggeredAt: row.triggeredat,
+    buyOrderId: row.buyorderid,
+    sellOrderId: row.sellorderid,
+    errorMessage: row.errormessage,
+    strategy: row.strategy
+});
+
 // Lấy danh sách trailing stops cho client
 export const getActiveSimulationsForClient = async () => {
     try {
@@ -129,7 +169,8 @@ export const getActiveSimulationsForClient = async () => {
         }
 
         console.log(`[TrailingStop] Successfully loaded ${data?.length || 0} simulations from Supabase`);
-        return data || [];
+        // Map database rows to TrailingStopState objects
+        return (data || []).map(mapDbRowToState);
     } catch (error: any) {
         console.error('[TrailingStop] Error in getActiveSimulationsForClient:', error.message || error);
         // Fallback to in-memory data
@@ -181,14 +222,51 @@ export const restoreTrailingStopsFromDB = async () => {
 
 export const initializeTrailingStopsTable = async () => {
     try {
-        const { error } = await supabase.rpc('check_or_create_trailing_stops_table');
-        if (error) {
-            console.error('Error initializing trailing_stops table:', error.message);
+        // Check if table exists by trying to select from it
+        const { data, error } = await supabase
+            .from('trailing_stops')
+            .select('*')
+            .limit(1);
+
+        if (error && error.code === 'PGRST116') {
+            // Table doesn't exist, show SQL to create it
+            console.log('[TrailingStopState] Table trailing_stops does not exist, needs to be created manually in Supabase Dashboard.');
+            console.log('[TrailingStopState] SQL to create table with BullMQ support:');
+            console.log(`
+CREATE TABLE trailing_stops (
+    id SERIAL PRIMARY KEY,
+    stateKey TEXT UNIQUE NOT NULL,
+    isActive BOOLEAN DEFAULT TRUE,
+    status TEXT DEFAULT 'pending_activation' CHECK (status IN ('pending_activation', 'active', 'triggered', 'error', 'cancelled')),
+    activationPrice NUMERIC,
+    symbol TEXT NOT NULL,
+    entryPrice NUMERIC NOT NULL,
+    highestPrice NUMERIC NOT NULL,
+    trailingPercent NUMERIC NOT NULL,
+    quantity NUMERIC NOT NULL,
+    side TEXT DEFAULT 'sell' CHECK (side IN ('buy', 'sell')),
+    strategy TEXT,
+    triggerPrice NUMERIC,
+    triggeredAt BIGINT,
+    buyOrderId TEXT,
+    sellOrderId TEXT,
+    errorMessage TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create indexes for better performance
+CREATE INDEX idx_trailing_stops_status ON trailing_stops(status);
+CREATE INDEX idx_trailing_stops_symbol ON trailing_stops(symbol);
+CREATE INDEX idx_trailing_stops_created_at ON trailing_stops(created_at);
+            `);
+        } else if (error) {
+            console.error('[TrailingStopState] Error checking trailing_stops table:', error);
         } else {
-            console.log('Trailing stops table initialized successfully.');
+            console.log('[TrailingStopState] Table trailing_stops already exists.');
         }
     } catch (error) {
-        console.error('Unexpected error while initializing trailing_stops table:', error);
+        console.error('[TrailingStopState] Error initializing table:', error);
     }
 };
 

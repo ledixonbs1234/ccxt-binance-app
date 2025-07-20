@@ -1,8 +1,8 @@
 // Test script để kiểm tra tích hợp API thực tế
 // Chạy: node test-api-integration.js
 
-const { tradingApiService } = require('./lib/tradingApiService');
-const { enhancedTrailingStopService } = require('./lib/enhancedTrailingStopService');
+const { tradingApiService } = require('../lib/tradingApiService');
+const { enhancedTrailingStopService } = require('../lib/enhancedTrailingStopService');
 
 async function testApiIntegration() {
   console.log('🚀 Bắt đầu test tích hợp API thực tế...\n');

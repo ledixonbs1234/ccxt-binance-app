@@ -11,7 +11,8 @@ import { tradingApiService } from './tradingApiService';
 import {
   calculateTrailingStop,
   StrategyCalculationParams,
-  StrategyCalculationResult
+  StrategyCalculationResult,
+  CandleData
 } from './strategyCalculations';
 import { StrategySwitchingService } from './strategySwitchingService';
 import { notificationService } from './notificationService';
@@ -546,7 +547,8 @@ export class EnhancedTrailingStopService {
         throw new Error(`Failed to fetch candles: ${response.statusText}`);
       }
       const data = await response.json();
-      return data.candles || [];
+      // API trả về data trong field 'data', không phải 'candles'
+      return data.data || [];
     } catch (error) {
       console.error(`[EnhancedTrailingStopService] Failed to fetch candles for ${symbol}:`, error);
       return [];
@@ -894,6 +896,7 @@ export class EnhancedTrailingStopService {
   }[]> {
     try {
       const candles = await this.getRecentCandles(symbol, timeframe, period);
+
       if (candles.length < 10) {
         return [];
       }
@@ -955,16 +958,26 @@ export class EnhancedTrailingStopService {
     const returns: number[] = [];
 
     try {
-      for (let i = 10; i < candles.length - 1; i++) {
-        const entryPrice = candles[i][4]; // Close price
-        const exitPrice = candles[i + 1][4];
+      // Convert raw candles array to CandleData objects
+      const convertedCandles = candles.map(candle => ({
+        timestamp: candle[0],
+        open: candle[1],
+        high: candle[2],
+        low: candle[3],
+        close: candle[4],
+        volume: candle[5]
+      }));
+
+      for (let i = 10; i < convertedCandles.length - 1; i++) {
+        const entryPrice = convertedCandles[i].close;
+        const exitPrice = convertedCandles[i + 1].close;
 
         const params: StrategyCalculationParams = {
           strategy,
           currentPrice: entryPrice,
           entryPrice,
           isLong: true,
-          candles: candles.slice(0, i + 1),
+          candles: convertedCandles.slice(0, i + 1),
           trailingPercent: 2,
           atrMultiplier: 2,
           atrPeriod: 14

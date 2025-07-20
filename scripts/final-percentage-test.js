@@ -13,7 +13,7 @@ async function testMainCoins() {
   try {
     console.log('🔍 Test Batch Ticker API...');
     const symbols = mainCoins.join(',');
-    const response = await fetch(`http://localhost:3000/api/batch-ticker?symbols=${encodeURIComponent(symbols)}`);
+    const response = await fetch(`http://localhost:3002/api/batch-ticker?symbols=${encodeURIComponent(symbols)}`);
     
     if (!response.ok) {
       throw new Error(`API Error: ${response.status} ${response.statusText}`);
@@ -94,7 +94,7 @@ async function testMainCoins() {
     
     for (const symbol of mainCoins) {
       try {
-        const response = await fetch(`http://localhost:3000/api/ticker?symbol=${encodeURIComponent(symbol)}`);
+        const response = await fetch(`http://localhost:3002/api/ticker?symbol=${encodeURIComponent(symbol)}`);
         
         if (!response.ok) {
           console.log(`❌ ${symbol}: API Error ${response.status}`);

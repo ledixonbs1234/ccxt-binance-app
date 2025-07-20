@@ -117,7 +117,7 @@ export default function EnhancedTrailingStopPanel({
   };
 
   const activePositions = positions.filter(p => p.status === 'active' || p.status === 'pending');
-  const recentAlerts = alerts.slice(0, 10);
+  const recentAlerts = (alerts || []).slice(0, 10);
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -138,7 +138,7 @@ export default function EnhancedTrailingStopPanel({
               </Space>
               <Space align="center">
                 <DollarOutlined style={{ color: '#8c8c8c' }} />
-                <Text strong>{formatCurrency(performance.totalPnL)}</Text>
+                <Text strong>{formatCurrency(performance?.totalPnL || 0)}</Text>
               </Space>
             </Space>
           </Col>
@@ -150,7 +150,7 @@ export default function EnhancedTrailingStopPanel({
             <Card size="small" style={{ textAlign: 'center' }}>
               <Statistic
                 title="Tổng Vị Thế"
-                value={performance.totalPositions}
+                value={performance?.totalPositions || 0}
                 valueStyle={{ color: '#1890ff', fontSize: 24, fontWeight: 'bold' }}
               />
             </Card>
@@ -159,7 +159,7 @@ export default function EnhancedTrailingStopPanel({
             <Card size="small" style={{ textAlign: 'center' }}>
               <Statistic
                 title="Tỷ Lệ Thắng"
-                value={performance.winRate}
+                value={performance?.winRate || 0}
                 precision={1}
                 suffix="%"
                 valueStyle={{ color: '#52c41a', fontSize: 24, fontWeight: 'bold' }}
@@ -170,9 +170,9 @@ export default function EnhancedTrailingStopPanel({
             <Card size="small" style={{ textAlign: 'center' }}>
               <Statistic
                 title="Tổng P&L"
-                value={formatPercent(performance.totalPnLPercent)}
+                value={formatPercent(performance?.totalPnLPercent || 0)}
                 valueStyle={{
-                  color: performance.totalPnLPercent >= 0 ? '#52c41a' : '#ff4d4f',
+                  color: (performance?.totalPnLPercent || 0) >= 0 ? '#52c41a' : '#ff4d4f',
                   fontSize: 24,
                   fontWeight: 'bold'
                 }}
@@ -183,7 +183,7 @@ export default function EnhancedTrailingStopPanel({
             <Card size="small" style={{ textAlign: 'center' }}>
               <Statistic
                 title="Sụt Giảm Tối Đa"
-                value={performance.maxDrawdown}
+                value={performance?.maxDrawdown || 0}
                 precision={1}
                 suffix="%"
                 valueStyle={{ color: '#fa8c16', fontSize: 24, fontWeight: 'bold' }}
@@ -374,7 +374,7 @@ export default function EnhancedTrailingStopPanel({
             label: (
               <Space>
                 Cảnh Báo
-                <Badge count={alerts.length} size="small" />
+                <Badge count={alerts?.length || 0} size="small" />
               </Space>
             ),
             children: (
@@ -384,7 +384,7 @@ export default function EnhancedTrailingStopPanel({
                     <Title level={5} style={{ margin: 0 }}>Cảnh Báo Gần Đây</Title>
                   </Col>
                   <Col>
-                    {onClearAlerts && alerts.length > 0 && (
+                    {onClearAlerts && (alerts?.length || 0) > 0 && (
                       <Button size="small" onClick={onClearAlerts}>
                         Xóa Tất Cả
                       </Button>
@@ -435,23 +435,23 @@ export default function EnhancedTrailingStopPanel({
                         <Space direction="vertical" size="small" style={{ width: '100%' }}>
                           <Row justify="space-between">
                             <Text type="secondary">Tổng Vị Thế:</Text>
-                            <Text strong>{performance.totalPositions}</Text>
+                            <Text strong>{performance?.totalPositions || 0}</Text>
                           </Row>
                           <Row justify="space-between">
                             <Text type="secondary">Vị Thế Đang Hoạt Động:</Text>
-                            <Text strong>{performance.activePositions}</Text>
+                            <Text strong>{performance?.activePositions || 0}</Text>
                           </Row>
                           <Row justify="space-between">
                             <Text type="secondary">Vị Thế Đã Kích Hoạt:</Text>
-                            <Text strong>{performance.triggeredPositions}</Text>
+                            <Text strong>{performance?.triggeredPositions || 0}</Text>
                           </Row>
                           <Row justify="space-between">
                             <Text type="secondary">Tỷ Lệ Thắng:</Text>
-                            <Text strong style={{ color: '#52c41a' }}>{performance.winRate.toFixed(1)}%</Text>
+                            <Text strong style={{ color: '#52c41a' }}>{(performance?.winRate || 0).toFixed(1)}%</Text>
                           </Row>
                           <Row justify="space-between">
                             <Text type="secondary">Thời Gian Nắm Giữ TB:</Text>
-                            <Text strong>{Math.round(performance.avgHoldTime / 3600000)}h</Text>
+                            <Text strong>{Math.round((performance?.avgHoldTime || 0) / 3600000)}h</Text>
                           </Row>
                         </Space>
                       </Space>
@@ -463,24 +463,24 @@ export default function EnhancedTrailingStopPanel({
                         <Space direction="vertical" size="small" style={{ width: '100%' }}>
                           <Row justify="space-between">
                             <Text type="secondary">Tổng P&L:</Text>
-                            <Text strong style={{ color: performance.totalPnL >= 0 ? '#52c41a' : '#ff4d4f' }}>
-                              {formatCurrency(performance.totalPnL)}
+                            <Text strong style={{ color: (performance?.totalPnL || 0) >= 0 ? '#52c41a' : '#ff4d4f' }}>
+                              {formatCurrency(performance?.totalPnL || 0)}
                             </Text>
                           </Row>
                           <Row justify="space-between">
                             <Text type="secondary">Tổng P&L %:</Text>
-                            <Text strong style={{ color: performance.totalPnLPercent >= 0 ? '#52c41a' : '#ff4d4f' }}>
-                              {formatPercent(performance.totalPnLPercent)}
+                            <Text strong style={{ color: (performance?.totalPnLPercent || 0) >= 0 ? '#52c41a' : '#ff4d4f' }}>
+                              {formatPercent(performance?.totalPnLPercent || 0)}
                             </Text>
                           </Row>
                           <Row justify="space-between">
                             <Text type="secondary">Sụt Giảm Tối Đa:</Text>
-                            <Text strong style={{ color: '#ff4d4f' }}>{performance.maxDrawdown.toFixed(1)}%</Text>
+                            <Text strong style={{ color: '#ff4d4f' }}>{(performance?.maxDrawdown || 0).toFixed(1)}%</Text>
                           </Row>
-                          {performance.sharpeRatio && (
+                          {performance?.sharpeRatio && (
                             <Row justify="space-between">
                               <Text type="secondary">Tỷ Lệ Sharpe:</Text>
-                              <Text strong>{performance.sharpeRatio.toFixed(2)}</Text>
+                              <Text strong>{(performance?.sharpeRatio || 0).toFixed(2)}</Text>
                             </Row>
                           )}
                         </Space>

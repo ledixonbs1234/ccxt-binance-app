@@ -19,7 +19,7 @@ async function testPercentageChanges() {
   try {
     // Test batch ticker API
     const symbols = Object.values(COIN_PAIRS).join(',');
-    const response = await fetch(`http://localhost:3000/api/batch-ticker?symbols=${encodeURIComponent(symbols)}`);
+    const response = await fetch(`http://localhost:3002/api/batch-ticker?symbols=${encodeURIComponent(symbols)}`);
     
     if (!response.ok) {
       throw new Error(`API Error: ${response.status} ${response.statusText}`);
@@ -98,7 +98,7 @@ async function testIndividualTickers() {
 
   for (const [coin, symbol] of Object.entries(COIN_PAIRS)) {
     try {
-      const response = await fetch(`http://localhost:3000/api/ticker?symbol=${encodeURIComponent(symbol)}`);
+      const response = await fetch(`http://localhost:3002/api/ticker?symbol=${encodeURIComponent(symbol)}`);
       
       if (!response.ok) {
         console.log(`❌ ${coin}: API Error ${response.status}`);

@@ -169,3 +169,178 @@ export const tradingComponentStyles = {
     color: tradingColors.neutral,
   },
 };
+
+// Integrated platform theme extensions
+export const integratedThemeExtensions = {
+  // Homepage specific colors
+  homepage: {
+    cardHover: '#f8fafc',
+    cardHoverDark: '#334155',
+    coinListHeader: '#f1f5f9',
+    coinListHeaderDark: '#1e293b',
+  },
+
+  // Trading page specific colors
+  trading: {
+    chartBackground: '#ffffff',
+    chartBackgroundDark: '#1e293b',
+    orderFormBackground: '#f8fafc',
+    orderFormBackgroundDark: '#0f172a',
+  },
+
+  // Backtesting page specific colors
+  backtesting: {
+    configPanelBackground: '#f8fafc',
+    configPanelBackgroundDark: '#0f172a',
+    resultsPanelBackground: '#ffffff',
+    resultsPanelBackgroundDark: '#1e293b',
+  },
+
+  // Navigation colors
+  navigation: {
+    activeTab: '#3b82f6',
+    inactiveTab: '#64748b',
+    hoverTab: '#e2e8f0',
+    hoverTabDark: '#334155',
+  },
+};
+
+// Enhanced light theme for integrated platform
+export const integratedLightTheme: ThemeConfig = {
+  ...lightTheme,
+  token: {
+    ...lightTheme.token,
+    // Enhanced spacing for better layout
+    marginXS: 4,
+    marginSM: 8,
+    marginMD: 16,
+    marginLG: 24,
+    marginXL: 32,
+
+    // Enhanced padding
+    paddingXS: 4,
+    paddingSM: 8,
+    paddingMD: 16,
+    paddingLG: 24,
+    paddingXL: 32,
+
+    // Enhanced border radius for modern look
+    borderRadiusXS: 4,
+    borderRadiusSM: 6,
+    borderRadiusLG: 12,
+    borderRadiusOuter: 16,
+  },
+  components: {
+    ...lightTheme.components,
+    // Enhanced Menu component for navigation
+    Menu: {
+      itemBg: 'transparent',
+      itemSelectedBg: '#e2e8f0',
+      itemHoverBg: '#f1f5f9',
+      itemActiveBg: '#e2e8f0',
+      itemSelectedColor: '#3b82f6',
+      itemColor: '#64748b',
+      horizontalItemSelectedBg: '#e2e8f0',
+      horizontalItemHoverBg: '#f1f5f9',
+    },
+
+    // Enhanced Tabs component
+    Tabs: {
+      itemColor: '#64748b',
+      itemSelectedColor: '#3b82f6',
+      itemHoverColor: '#3b82f6',
+      inkBarColor: '#3b82f6',
+      cardBg: '#ffffff',
+    },
+
+    // Enhanced Drawer component for mobile navigation
+    Drawer: {
+      colorBgElevated: '#ffffff',
+      colorBgMask: 'rgba(0, 0, 0, 0.45)',
+    },
+
+    // Enhanced Modal component
+    Modal: {
+      contentBg: '#ffffff',
+      headerBg: '#ffffff',
+      footerBg: '#ffffff',
+    },
+
+    // Enhanced Notification component
+    Notification: {
+      colorBgElevated: '#ffffff',
+      colorText: '#0f172a',
+      colorTextHeading: '#0f172a',
+    },
+  },
+};
+
+// Enhanced dark theme for integrated platform
+export const integratedDarkTheme: ThemeConfig = {
+  ...darkTheme,
+  token: {
+    ...darkTheme.token,
+    // Enhanced spacing for better layout
+    marginXS: 4,
+    marginSM: 8,
+    marginMD: 16,
+    marginLG: 24,
+    marginXL: 32,
+
+    // Enhanced padding
+    paddingXS: 4,
+    paddingSM: 8,
+    paddingMD: 16,
+    paddingLG: 24,
+    paddingXL: 32,
+
+    // Enhanced border radius for modern look
+    borderRadiusXS: 4,
+    borderRadiusSM: 6,
+    borderRadiusLG: 12,
+    borderRadiusOuter: 16,
+  },
+  components: {
+    ...darkTheme.components,
+    // Enhanced Menu component for navigation
+    Menu: {
+      itemBg: 'transparent',
+      itemSelectedBg: '#334155',
+      itemHoverBg: '#475569',
+      itemActiveBg: '#334155',
+      itemSelectedColor: '#3b82f6',
+      itemColor: '#94a3b8',
+      horizontalItemSelectedBg: '#334155',
+      horizontalItemHoverBg: '#475569',
+    },
+
+    // Enhanced Tabs component
+    Tabs: {
+      itemColor: '#94a3b8',
+      itemSelectedColor: '#3b82f6',
+      itemHoverColor: '#3b82f6',
+      inkBarColor: '#3b82f6',
+      cardBg: '#1e293b',
+    },
+
+    // Enhanced Drawer component for mobile navigation
+    Drawer: {
+      colorBgElevated: '#1e293b',
+      colorBgMask: 'rgba(0, 0, 0, 0.65)',
+    },
+
+    // Enhanced Modal component
+    Modal: {
+      contentBg: '#1e293b',
+      headerBg: '#1e293b',
+      footerBg: '#1e293b',
+    },
+
+    // Enhanced Notification component
+    Notification: {
+      colorBgElevated: '#1e293b',
+      colorText: '#f1f5f9',
+      colorTextHeading: '#f1f5f9',
+    },
+  },
+};

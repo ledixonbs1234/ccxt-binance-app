@@ -31,13 +31,17 @@ import {
   PlusOutlined,
   RiseOutlined,
   FallOutlined,
-  BellOutlined
+  BellOutlined,
+  QuestionCircleOutlined,
+  BookOutlined
 } from '@ant-design/icons';
 import { TrailingStopStrategy } from '../types/trailingStop';
 import { EnhancedTrailingStopService } from '../lib/enhancedTrailingStopService';
 import { useTrading, CoinSymbol } from '../contexts/TradingContext';
 import { useTranslations } from '../contexts/LanguageContext';
 import StrategySelector from './StrategySelector';
+import QuickGuideModal from './QuickGuideModal';
+import { generateUniqueId } from '../lib/utils';
 import StrategyConfigPanel from './StrategyConfigPanel';
 import EnhancedDemoCandlestickChart from './EnhancedDemoCandlestickChart';
 import EnhancedTrailingStopPanel from './EnhancedTrailingStopPanel';
@@ -134,6 +138,7 @@ export default function AdvancedTrailingStopDemo() {
   });
   const [isServiceRunning, setIsServiceRunning] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showQuickGuide, setShowQuickGuide] = useState(false);
   const [form] = Form.useForm();
 
   // Initialize service
@@ -230,7 +235,7 @@ export default function AdvancedTrailingStopDemo() {
 
     // Add alert for position update
     const alert: TrailingStopAlert = {
-      id: `alert_${Date.now()}`,
+      id: `alert_${generateUniqueId()}`,
       type: 'adjustment',
       message: `Position ${updatedPosition.symbol} updated - Trailing: ${updatedPosition.trailingPercent.toFixed(1)}%`,
       position: updatedPosition,
@@ -246,7 +251,7 @@ export default function AdvancedTrailingStopDemo() {
       setIsServiceRunning(true);
 
       const alert: TrailingStopAlert = {
-        id: `alert_${Date.now()}`,
+        id: `alert_${generateUniqueId()}`,
         type: 'activation',
         message: 'Advanced trailing stop service started',
         position: positions[0] || {} as TrailingStopPosition,
@@ -263,7 +268,7 @@ export default function AdvancedTrailingStopDemo() {
       setIsServiceRunning(false);
 
       const alert: TrailingStopAlert = {
-        id: `alert_${Date.now()}`,
+        id: `alert_${generateUniqueId()}`,
         type: 'trigger',
         message: 'Advanced trailing stop service stopped',
         position: positions[0] || {} as TrailingStopPosition,
@@ -328,7 +333,7 @@ export default function AdvancedTrailingStopDemo() {
       });
 
       const alert: TrailingStopAlert = {
-        id: `alert_${Date.now()}`,
+        id: `alert_${generateUniqueId()}`,
         type: 'activation',
         message: `New ${selectedStrategy} position created for ${selectedCoin}`,
         position: newPosition,
@@ -340,7 +345,7 @@ export default function AdvancedTrailingStopDemo() {
     } catch (error) {
       console.error('Error creating new position:', error);
       const alert: TrailingStopAlert = {
-        id: `alert_${Date.now()}`,
+        id: `alert_${generateUniqueId()}`,
         type: 'error',
         message: `Failed to create position: ${error instanceof Error ? error.message : 'Unknown error'}`,
         position: {} as TrailingStopPosition,
@@ -353,17 +358,109 @@ export default function AdvancedTrailingStopDemo() {
 
   // Analyze strategies performance
   const analyzeStrategies = async () => {
-    if (!service) return;
-    
     setIsAnalyzing(true);
     try {
-      const performance = await service.getStrategiesPerformance(selectedSymbol, '1h', 48);
-      setPerformanceData(performance);
+      // Fetch candles data for analysis
+      const response = await fetch(`/api/candles?symbol=${selectedSymbol}&timeframe=1h&limit=48`);
+      const data = await response.json();
+
+      if (!data.success || !data.data || data.data.length === 0) {
+        throw new Error('Failed to fetch candles data');
+      }
+
+      // Perform strategy analysis
+      const candles = data.data;
+      const strategies: TrailingStopStrategy[] = ['percentage', 'atr', 'fibonacci', 'bollinger_bands', 'volume_profile'];
+      const results: StrategyPerformance[] = [];
+
+      for (const strategy of strategies) {
+        // Simple backtest simulation
+        let wins = 0;
+        let losses = 0;
+        let totalProfit = 0;
+        let maxDrawdown = 0;
+        let currentDrawdown = 0;
+        const returns: number[] = [];
+
+        for (let i = 10; i < candles.length - 1; i++) {
+          const entryPrice = candles[i][4]; // Close price
+          const exitPrice = candles[i + 1][4];
+          const stopLoss = entryPrice * 0.98; // 2% stop loss
+
+          if (exitPrice > entryPrice && exitPrice > stopLoss) {
+            const profit = (exitPrice - entryPrice) / entryPrice * 100;
+            wins++;
+            totalProfit += profit;
+            returns.push(profit);
+            currentDrawdown = Math.max(0, currentDrawdown - profit);
+          } else {
+            const loss = (stopLoss - entryPrice) / entryPrice * 100;
+            losses++;
+            totalProfit += loss;
+            returns.push(loss);
+            currentDrawdown += Math.abs(loss);
+            maxDrawdown = Math.max(maxDrawdown, currentDrawdown);
+          }
+        }
+
+        const totalTrades = wins + losses;
+        const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
+        const avgProfit = totalTrades > 0 ? totalProfit / totalTrades : 0;
+
+        // Calculate Sharpe ratio
+        const avgReturn = returns.length > 0 ? returns.reduce((a, b) => a + b, 0) / returns.length : 0;
+        const stdDev = returns.length > 1 ? Math.sqrt(returns.reduce((sum, ret) => sum + Math.pow(ret - avgReturn, 2), 0) / (returns.length - 1)) : 1;
+        const sharpeRatio = stdDev > 0 ? avgReturn / stdDev : 0;
+
+        results.push({
+          strategy,
+          name: getStrategyDisplayName(strategy),
+          performance: {
+            winRate: Math.round(winRate * 100) / 100,
+            avgProfit: Math.round(avgProfit * 100) / 100,
+            maxDrawdown: Math.round(maxDrawdown * 100) / 100,
+            sharpeRatio: Math.round(sharpeRatio * 100) / 100
+          }
+        });
+      }
+
+      // Sort by Sharpe ratio (best performing strategies first)
+      results.sort((a, b) => b.performance.sharpeRatio - a.performance.sharpeRatio);
+
+      setPerformanceData(results);
+
     } catch (error) {
       console.error('Strategy analysis failed:', error);
+      const alert: TrailingStopAlert = {
+        id: `alert_${generateUniqueId()}`,
+        type: 'error',
+        message: `Strategy analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        position: {} as TrailingStopPosition,
+        timestamp: Date.now(),
+        severity: 'error',
+      };
+      setAlerts(prev => [alert, ...prev.slice(0, 49)]);
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  // Helper function to get strategy display name
+  const getStrategyDisplayName = (strategy: TrailingStopStrategy): string => {
+    const names: Record<TrailingStopStrategy, string> = {
+      'percentage': 'Percentage Based',
+      'atr': 'ATR Based',
+      'support_resistance': 'Support/Resistance',
+      'dynamic': 'Dynamic Volatility',
+      'hybrid': 'Hybrid Multi-Strategy',
+      'fibonacci': 'Fibonacci Retracement',
+      'bollinger_bands': 'Bollinger Bands',
+      'volume_profile': 'Volume Profile',
+      'smart_money': 'Smart Money Concepts',
+      'ichimoku': 'Ichimoku Cloud',
+      'pivot_points': 'Pivot Points'
+    };
+    return names[strategy] || strategy;
   };
 
   // Create demo position
@@ -418,6 +515,7 @@ export default function AdvancedTrailingStopDemo() {
   };
 
   return (
+    <>
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--color-bg-container)' }}>
       {/* Header */}
       <Card style={{ borderRadius: 0, borderLeft: 0, borderRight: 0, borderTop: 0 }}>
@@ -509,7 +607,30 @@ export default function AdvancedTrailingStopDemo() {
         <Row gutter={[16, 16]}>
           {/* Configuration Panel */}
           <Col xs={24} lg={12}>
-            <Card title="Strategy Configuration" size="small">
+            <Card
+              title="Strategy Configuration"
+              size="small"
+              extra={
+                <Space>
+                  <Button
+                    size="small"
+                    icon={<QuestionCircleOutlined />}
+                    onClick={() => setShowQuickGuide(true)}
+                    type="dashed"
+                  >
+                    Help
+                  </Button>
+                  <Button
+                    size="small"
+                    icon={<BookOutlined />}
+                    href="/guide"
+                    target="_blank"
+                  >
+                    Guide
+                  </Button>
+                </Space>
+              }
+            >
               <Form form={form} layout="vertical">
                 <Form.Item label="Symbol">
                   <Select
@@ -586,6 +707,7 @@ export default function AdvancedTrailingStopDemo() {
             <div style={{ height: 320, overflowY: 'auto' }}>
               <List
                 dataSource={alerts.slice(0, 20)}
+                rowKey="id"
                 renderItem={(alert) => (
                   <List.Item style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
                     <div style={{ width: '100%' }}>
@@ -712,4 +834,12 @@ export default function AdvancedTrailingStopDemo() {
       </Row>
     </div>
   </div>
+
+  {/* Quick Guide Modal */}
+  <QuickGuideModal
+    visible={showQuickGuide}
+    onClose={() => setShowQuickGuide(false)}
+  />
+  </>
+  );
 };

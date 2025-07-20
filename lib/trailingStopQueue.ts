@@ -1,36 +1,18 @@
-import { Queue, Worker, Job } from 'bullmq';
-import Redis from 'ioredis';
+// Only import BullMQ on server-side to avoid client-side issues
+let Queue: any, Worker: any, Job: any, Redis: any;
+
+if (typeof window === 'undefined') {
+  // Server-side imports
+  const bullmq = require('bullmq');
+  Queue = bullmq.Queue;
+  Worker = bullmq.Worker;
+  Job = bullmq.Job;
+  Redis = require('ioredis').default;
+}
+
 import { supabase } from './supabase';
 import { TrailingStopState } from './trailingStopState';
 import ccxt from 'ccxt';
-
-// Redis connection configuration
-const redisConfig = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD,
-  maxRetriesPerRequest: 3,
-  retryDelayOnFailover: 100,
-  enableReadyCheck: false,
-  maxRetriesPerRequest: null,
-};
-
-// Create Redis connection
-const redis = new Redis(redisConfig);
-
-// Create BullMQ queue for trailing stop monitoring
-export const trailingStopQueue = new Queue('trailing-stop-monitor', {
-  connection: redis,
-  defaultJobOptions: {
-    removeOnComplete: 100, // Keep last 100 completed jobs
-    removeOnFail: 50,      // Keep last 50 failed jobs
-    attempts: 3,
-    backoff: {
-      type: 'exponential',
-      delay: 2000,
-    },
-  },
-});
 
 // Job data interface
 interface TrailingStopJobData {
@@ -40,10 +22,82 @@ interface TrailingStopJobData {
   trailingPercent: number;
   quantity: number;
   side: 'buy' | 'sell';
-  strategy?: string;
   activationPrice?: number;
-  status: 'pending_activation' | 'active' | 'triggered' | 'error';
+  status: string;
+  strategy?: string;
 }
+
+// Redis connection configuration
+const redisConfig = {
+  host: process.env.REDIS_HOST || 'localhost',
+  port: parseInt(process.env.REDIS_PORT || '6379'),
+  password: process.env.REDIS_PASSWORD,
+  maxRetriesPerRequest: 3,
+  retryDelayOnFailover: 100,
+  enableReadyCheck: false,
+  lazyConnect: true, // Don't connect immediately
+};
+
+// Global variables
+let redis: Redis | null = null;
+let isRedisAvailable = false;
+let trailingStopQueue: Queue | null = null;
+let trailingStopWorker: Worker | null = null;
+
+// Initialize Redis connection
+async function initializeRedis() {
+  try {
+    redis = new Redis(redisConfig);
+    await redis.ping();
+    isRedisAvailable = true;
+    console.log('[TrailingStopQueue] Redis connection established');
+    return true;
+  } catch (error) {
+    console.warn('[TrailingStopQueue] Redis not available, falling back to database-only mode:', error instanceof Error ? error.message : error);
+    isRedisAvailable = false;
+    // Properly disconnect and cleanup Redis instance
+    if (redis) {
+      try {
+        await redis.disconnect();
+      } catch (disconnectError) {
+        // Ignore disconnect errors
+      }
+      redis = null;
+    }
+    return false;
+  }
+}
+
+// Initialize BullMQ queue
+async function initializeBullMQ() {
+  if (!isRedisAvailable || !redis) {
+    console.log('[TrailingStopQueue] Skipping BullMQ initialization - Redis not available');
+    return false;
+  }
+
+  try {
+    trailingStopQueue = new Queue('trailing-stop-monitor', {
+      connection: redis,
+      defaultJobOptions: {
+        removeOnComplete: 100,
+        removeOnFail: 50,
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 2000,
+        },
+      },
+    });
+
+    console.log('[TrailingStopQueue] BullMQ queue initialized');
+    return true;
+  } catch (error) {
+    console.error('[TrailingStopQueue] Failed to initialize BullMQ:', error);
+    return false;
+  }
+}
+
+
 
 // Initialize Binance exchange for price monitoring
 const exchange = new ccxt.binance({
@@ -53,10 +107,17 @@ const exchange = new ccxt.binance({
   enableRateLimit: true,
 });
 
-// Worker to process trailing stop monitoring jobs
-export const trailingStopWorker = new Worker(
-  'trailing-stop-monitor',
-  async (job: Job<TrailingStopJobData>) => {
+// Worker initialization function
+async function initializeWorker() {
+  if (!isRedisAvailable || !redis || !trailingStopQueue) {
+    console.log('[TrailingStopQueue] Skipping worker initialization - dependencies not available');
+    return false;
+  }
+
+  try {
+    trailingStopWorker = new Worker(
+      'trailing-stop-monitor',
+      async (job: Job<TrailingStopJobData>) => {
     const { stateKey, symbol, entryPrice, trailingPercent, quantity, side, activationPrice, status } = job.data;
     
     try {
@@ -72,7 +133,7 @@ export const trailingStopWorker = new Worker(
       const { data: currentState, error } = await supabase
         .from('trailing_stops')
         .select('*')
-        .eq('stateKey', stateKey)
+        .eq('statekey', stateKey)
         .single();
 
       if (error) {
@@ -129,18 +190,23 @@ export const trailingStopWorker = new Worker(
           console.log(`[TrailingStopWorker] Position ${stateKey} triggered at ${currentPrice}`);
           
           // Remove from queue since position is closed
-          await trailingStopQueue.removeRepeatableByKey(stateKey);
+          if (trailingStopQueue) {
+            await trailingStopQueue.removeRepeatableByKey(stateKey);
+          }
         }
       }
 
-      // Update state in Supabase
+      // Update state in Supabase (convert to lowercase column names)
       const { error: updateError } = await supabase
         .from('trailing_stops')
         .update({
-          ...updatedState,
+          status: updatedState.status,
+          highestprice: updatedState.highestPrice,
+          triggerprice: updatedState.triggerPrice,
+          triggeredat: updatedState.triggeredAt,
           updated_at: new Date().toISOString()
         })
-        .eq('stateKey', stateKey);
+        .eq('statekey', stateKey);
 
       if (updateError) {
         console.error(`[TrailingStopWorker] Error updating state for ${stateKey}:`, updateError);
@@ -161,10 +227,10 @@ export const trailingStopWorker = new Worker(
         .from('trailing_stops')
         .update({
           status: 'error',
-          errorMessage: error instanceof Error ? error.message : 'Unknown error',
+          errormessage: error instanceof Error ? error.message : 'Unknown error',
           updated_at: new Date().toISOString()
         })
-        .eq('stateKey', stateKey);
+        .eq('statekey', stateKey);
 
       throw error;
     }
@@ -175,8 +241,20 @@ export const trailingStopWorker = new Worker(
   }
 );
 
+    console.log('[TrailingStopQueue] Worker initialized');
+    return true;
+  } catch (error) {
+    console.error('[TrailingStopQueue] Failed to initialize worker:', error);
+    return false;
+  }
+}
+
 // Add a new trailing stop to the queue
 export const addTrailingStopToQueue = async (jobData: TrailingStopJobData) => {
+  if (!trailingStopQueue) {
+    throw new Error('BullMQ queue not initialized');
+  }
+
   try {
     // Add repeating job that runs every 2 seconds
     await trailingStopQueue.add(
@@ -189,7 +267,7 @@ export const addTrailingStopToQueue = async (jobData: TrailingStopJobData) => {
         jobId: jobData.stateKey, // Use stateKey as job ID for easy removal
       }
     );
-    
+
     console.log(`[TrailingStopQueue] Added ${jobData.stateKey} to monitoring queue`);
   } catch (error) {
     console.error(`[TrailingStopQueue] Error adding ${jobData.stateKey} to queue:`, error);
@@ -199,6 +277,11 @@ export const addTrailingStopToQueue = async (jobData: TrailingStopJobData) => {
 
 // Remove a trailing stop from the queue
 export const removeTrailingStopFromQueue = async (stateKey: string) => {
+  if (!trailingStopQueue) {
+    console.warn('[TrailingStopQueue] Queue not initialized, cannot remove job');
+    return;
+  }
+
   try {
     await trailingStopQueue.removeRepeatableByKey(stateKey);
     console.log(`[TrailingStopQueue] Removed ${stateKey} from monitoring queue`);
@@ -210,6 +293,17 @@ export const removeTrailingStopFromQueue = async (stateKey: string) => {
 
 // Get queue statistics
 export const getQueueStats = async () => {
+  if (!trailingStopQueue) {
+    return {
+      waiting: 0,
+      active: 0,
+      completed: 0,
+      failed: 0,
+      total: 0,
+      system: 'fallback'
+    };
+  }
+
   try {
     const waiting = await trailingStopQueue.getWaiting();
     const active = await trailingStopQueue.getActive();
@@ -221,7 +315,8 @@ export const getQueueStats = async () => {
       active: active.length,
       completed: completed.length,
       failed: failed.length,
-      total: waiting.length + active.length
+      total: waiting.length + active.length,
+      system: 'bullmq'
     };
   } catch (error) {
     console.error('[TrailingStopQueue] Error getting queue stats:', error);
@@ -233,9 +328,27 @@ export const getQueueStats = async () => {
 export const initializeTrailingStopQueue = async () => {
   try {
     console.log('[TrailingStopQueue] Initializing queue system...');
-    
+
+    // Initialize Redis connection
+    const redisInitialized = await initializeRedis();
+    if (!redisInitialized) {
+      throw new Error('Redis connection failed');
+    }
+
+    // Initialize BullMQ queue
+    const bullmqInitialized = await initializeBullMQ();
+    if (!bullmqInitialized) {
+      throw new Error('BullMQ initialization failed');
+    }
+
+    // Initialize worker
+    const workerInitialized = await initializeWorker();
+    if (!workerInitialized) {
+      throw new Error('Worker initialization failed');
+    }
+
     // Clear any existing jobs to prevent duplicates
-    await trailingStopQueue.obliterate({ force: true });
+    await trailingStopQueue!.obliterate({ force: true });
     
     // Restore active trailing stops from database
     const { data: activeStops, error } = await supabase
@@ -278,9 +391,19 @@ export const initializeTrailingStopQueue = async () => {
 export const shutdownTrailingStopQueue = async () => {
   try {
     console.log('[TrailingStopQueue] Shutting down queue system...');
-    await trailingStopWorker.close();
-    await trailingStopQueue.close();
-    await redis.disconnect();
+
+    if (trailingStopWorker) {
+      await trailingStopWorker.close();
+    }
+
+    if (trailingStopQueue) {
+      await trailingStopQueue.close();
+    }
+
+    if (redis) {
+      await redis.disconnect();
+    }
+
     console.log('[TrailingStopQueue] Queue system shut down successfully');
   } catch (error) {
     console.error('[TrailingStopQueue] Error during shutdown:', error);

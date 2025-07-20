@@ -1,22 +1,19 @@
-// pages/api/simulate-trailing-stop.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import ccxt, { Exchange, Ticker, Order } from 'ccxt';
 import { NextResponse } from 'next/server';
-import { activeTrailingStops, updateTrailingStopState, removeTrailingStopState, TrailingStopState } from '@/lib/trailingStopState'; // Sử dụng alias @
+import { updateTrailingStopState, TrailingStopState } from '@/lib/trailingStopState';
 import { generateUniqueStringId } from '@/lib/utils';
-const CHECK_INTERVAL_MS = 1500; // Giảm xuống 1.5 giây (điều chỉnh nếu cần)
-const REMOVAL_DELAY = 20000;
-// Lưu ý: Lưu state trong bộ nhớ như thế này KHÔNG phù hợp cho production
-// vì nó sẽ mất khi server khởi động lại hoặc scale.
-// Cần dùng DB hoặc Cache.
-// --- Kết thúc phần state ---
-// Hàm chính xử lý request
-// --- Hàm xử lý phương thức POST ---
-export async function POST(req: Request) { // Đổi tên thành POST, nhận Request
+import { initializeQueueSystem, isQueueSystemInitialized } from '@/lib/queueInitializer';
+export async function POST(req: Request) {
     try {
+        // Initialize queue system if not already initialized
+        if (!isQueueSystemInitialized()) {
+            await initializeQueueSystem();
+        }
+
         // Lấy body từ request
         const body = await req.json();
-        const { symbol, quantity, trailingPercent, entryPrice, useActivationPrice, activationPrice } = body;
+        const { symbol, quantity, trailingPercent, entryPrice, useActivationPrice, activationPrice, side = 'sell' } = body;
 
         // --- Validate input (Thêm validate activationPrice) ---
         if (!symbol || typeof quantity !== 'number' || quantity <= 0 || typeof trailingPercent !== 'number' || trailingPercent <= 0 || typeof entryPrice !== 'number' || entryPrice <= 0) {
@@ -57,160 +54,37 @@ export async function POST(req: Request) { // Đổi tên thành POST, nhận Re
                 error: 'BUY_ORDER_FAILED'
             }, { status: 500 });
         }
-        // --- Khởi tạo State bằng hàm update ---
+        // --- Khởi tạo State với BullMQ integration ---
         const initialState: TrailingStopState = {
             stateKey,
-            isActive: true, // Luôn active ban đầu để interval chạy
-            status: needsActivation ? 'pending_activation' : 'active', // Status dựa vào activation
+            isActive: true,
+            status: needsActivation ? 'pending_activation' : 'active',
             activationPrice: needsActivation ? activationPrice : undefined,
             symbol,
-            entryPrice: actualEntryPrice, // Sử dụng giá thực tế từ lệnh mua
-            highestPrice: actualEntryPrice, // Bắt đầu từ actualEntryPrice
+            entryPrice: actualEntryPrice,
+            highestPrice: actualEntryPrice,
             trailingPercent,
             quantity,
-            checkInterval: undefined,
-            buyOrderId, // Lưu ID lệnh mua
+            side, // Add side parameter
+            buyOrderId,
+            triggerPrice: side === 'sell'
+                ? actualEntryPrice * (1 - trailingPercent / 100)
+                : actualEntryPrice * (1 + trailingPercent / 100)
         };
-        updateTrailingStopState(stateKey, initialState); // Thêm vào Map
-        console.log(`[${stateKey}] Starting simulation for ${symbol}. Status: ${initialState.status}${needsActivation ? ` (Activation @ ${activationPrice})` : ''}`);
 
-        // --- Bắt đầu vòng lặp theo dõi (Giữ nguyên logic bên trong) ---
-        // !!! Cảnh báo: setInterval vẫn không lý tưởng cho production !!!
-        const intervalId = setInterval(async () => {
-            const state = activeTrailingStops.get(stateKey);
-            if (!state) {
-                clearInterval(intervalId); return;
-            }
-            // Nếu không active nữa (do trigger/error/manual stop) thì dừng
-            if (!state.isActive) {
-                 // Đã được clear ở nơi khác, ko cần clear lại
-                return;
-            }
-
-            try {
-                const ticker: Ticker = await exchange.fetchTicker(state.symbol);
-                const currentPrice = ticker.last;
-                if (!currentPrice) {
-                     console.error(`[${stateKey}] Could not fetch current price.`);
-                     return;
-                }
-
-                // --- Logic chính dựa trên Status ---
-                let currentStatus = state.status; // Lấy status hiện tại
-
-                // 1. Kiểm tra kích hoạt nếu đang chờ
-                if (currentStatus === 'pending_activation' && state.activationPrice) {
-                    console.log(`[${stateKey}] Pending activation. Current: ${currentPrice}, Activation: ${state.activationPrice}`);
-                    if (currentPrice >= state.activationPrice) {
-                        console.log(`[${stateKey}] *** ACTIVATION TRIGGERED *** at price ${currentPrice}`);
-
-                        // *** THỰC HIỆN LỆNH MUA KHI ACTIVATION ***
-                        try {
-                            console.log(`[${stateKey}] Placing BUY order after activation for ${state.quantity} ${state.symbol}`);
-                            const buyOrder: Order = await exchange.createMarketBuyOrder(state.symbol, state.quantity);
-                            const actualEntryPrice = buyOrder.average || buyOrder.price || currentPrice;
-
-                            console.log(`[${stateKey}] BUY order placed after activation: ID ${buyOrder.id}, Entry Price: ${actualEntryPrice}`);
-
-                            // Cập nhật state với thông tin lệnh mua và chuyển sang active
-                            updateTrailingStopState(stateKey, {
-                                ...state,
-                                status: 'active',
-                                buyOrderId: buyOrder.id,
-                                entryPrice: actualEntryPrice,
-                                highestPrice: actualEntryPrice // Bắt đầu theo dõi từ giá entry thực tế
-                            });
-                            currentStatus = 'active'; // Chuyển sang xử lý active ngay trong lần lặp này
-                        } catch (buyError: any) {
-                            console.error(`[${stateKey}] FAILED to place BUY order after activation:`, buyError.message || buyError);
-                            updateTrailingStopState(stateKey, {
-                                ...state,
-                                status: 'error',
-                                errorMessage: `Buy order failed: ${buyError.message}`
-                            });
-                            clearInterval(intervalId);
-                            setTimeout(() => removeTrailingStopState(stateKey), REMOVAL_DELAY);
-                            return;
-                        }
-                    } else {
-                        return; // Chưa đạt giá kích hoạt, đợi lần sau
-                    }
-                }
-
-                // 2. Xử lý khi đã active (hoặc vừa được kích hoạt)
-                if (currentStatus === 'active') {
-                    // Lấy lại state mới nhất sau khi có thể đã kích hoạt
-                    const activeState = activeTrailingStops.get(stateKey);
-                    if (!activeState || !activeState.isActive) return; // Kiểm tra lại phòng trường hợp state bị thay đổi
-
-                    let updatedHighestPrice = activeState.highestPrice;
-                    if (currentPrice > activeState.highestPrice) {
-                        updatedHighestPrice = currentPrice;
-                        console.log(`[${stateKey}] New highest price: ${updatedHighestPrice}`);
-                    }
-
-                    // Tính stop price dựa trên highestPrice MỚI NHẤT
-                    const stopPrice = updatedHighestPrice * (1 - activeState.trailingPercent / 100);
-
-                    // Cập nhật state với highestPrice mới nhất (luôn cập nhật)
-                    updateTrailingStopState(stateKey, { ...activeState, highestPrice: updatedHighestPrice });
-
-                    // Kiểm tra trigger
-                     console.log(`[${stateKey}] Active. Current: ${currentPrice}, Highest: ${updatedHighestPrice}, Stop: ${stopPrice.toFixed(4)}`);
-                    if (currentPrice <= stopPrice) {
-                        console.log(`[${stateKey}] TRIGGERED! Current ${currentPrice} <= Stop ${stopPrice}.`);
-                         // --- Logic Trigger (giữ nguyên từ trước) ---
-                         updateTrailingStopState(stateKey, {
-                            ...activeState, // Dùng activeState lấy được ở trên
-                            highestPrice: updatedHighestPrice, // Lưu lại highest price cuối cùng
-                            isActive: false,
-                            status: 'triggered',
-                            triggerPrice: currentPrice,
-                            triggeredAt: Date.now(),
-                         });
-                        clearInterval(intervalId); // Dừng interval ngay
-
-                        // Thực hiện bán
-                        try {
-                            const sellOrder: Order = await exchange.createMarketSellOrder(activeState.symbol, activeState.quantity);
-                            console.log(`[${stateKey}] Market sell order placed: ID ${sellOrder.id}`);
-                            // Cập nhật state với sellOrderId
-                             const finalState = activeTrailingStops.get(stateKey);
-                             if(finalState) updateTrailingStopState(stateKey, { ...finalState, sellOrderId: sellOrder.id });
-                             // Lên lịch xóa
-                             setTimeout(() => removeTrailingStopState(stateKey), REMOVAL_DELAY);
-                        } catch (sellError: any) {
-                             console.error(`[${stateKey}] FAILED sell order:`, sellError.message || sellError);
-                             // Cập nhật state lỗi
-                             const finalState = activeTrailingStops.get(stateKey);
-                              if(finalState) updateTrailingStopState(stateKey, { ...finalState, status: 'error', errorMessage: sellError.message || sellError });
-                              // Lên lịch xóa lỗi
-                              setTimeout(() => removeTrailingStopState(stateKey), REMOVAL_DELAY * 2);
-                        }
-                        // --- Kết thúc Logic Trigger ---
-                    }
-                }
-                // Các status khác ('triggered', 'error') không cần xử lý thêm trong interval
-
-            } catch (fetchError: any) {
-                 console.error(`[${stateKey}] Error in interval:`, fetchError.message || fetchError);
-                 // Xử lý lỗi fetch (có thể dừng nếu lỗi nghiêm trọng)
-            }
-        }, CHECK_INTERVAL_MS); // Interval
-
-        // *** Cập nhật intervalId vào state trong Map ***
-        // Cập nhật phần xử lý để lưu trạng thái vào Supabase
-        // Thay đổi chính là sử dụng await cho các hàm updateTrailingStopState và removeTrailingStopState
-        
-        // Ví dụ:
+        // Update state and add to BullMQ queue
         await updateTrailingStopState(stateKey, initialState);
-        
-        // Và:
-        await updateTrailingStopState(stateKey, { ...initialState, checkInterval: intervalId });
+        console.log(`[${stateKey}] Starting BullMQ-based simulation for ${symbol}. Status: ${initialState.status}${needsActivation ? ` (Activation @ ${activationPrice})` : ''}`);
 
-        // Phản hồi thành công cho client biết việc theo dõi đã bắt đầu
-        // Sử dụng NextResponse.json
-        return NextResponse.json({ message: `Trailing stop simulation started for ${symbol}`, stateKey }, { status: 200 });
+        // Return success response - monitoring is now handled by BullMQ
+        return NextResponse.json({
+            message: `Trailing stop simulation started for ${symbol}`,
+            stateKey,
+            status: initialState.status,
+            entryPrice: actualEntryPrice,
+            triggerPrice: initialState.triggerPrice,
+            system: 'BullMQ'
+        }, { status: 200 });
 
     } catch (error: any) {
         // Xử lý lỗi chung (ví dụ: lỗi parse JSON body, lỗi không mong muốn)

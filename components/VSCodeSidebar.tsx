@@ -9,7 +9,8 @@ import {
   RobotOutlined,
   StarOutlined,
   HistoryOutlined,
-  SettingOutlined
+  SettingOutlined,
+  ExperimentOutlined
 } from '@ant-design/icons';
 import { useTranslations } from '../contexts/LanguageContext';
 
@@ -51,6 +52,16 @@ export default function VSCodeSidebar({ currentSection, onSectionChange }: VSCod
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span>{t.navigation.enhancedDemo}</span>
           <Badge count="MỚI" style={{ backgroundColor: '#52c41a', fontSize: '10px' }} />
+        </div>
+      ),
+    },
+    {
+      key: 'ai-backtesting',
+      icon: <ExperimentOutlined />,
+      label: (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>AI Backtesting</span>
+          <Badge count="HOT" style={{ backgroundColor: '#ff4d4f', fontSize: '10px' }} />
         </div>
       ),
     },
