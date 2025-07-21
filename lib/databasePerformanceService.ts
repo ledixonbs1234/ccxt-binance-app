@@ -46,6 +46,22 @@ class DatabasePerformanceService {
     options: PaginationOptions = {},
     filters: Record<string, any> = {}
   ) {
+    // Check if supabase client is available
+    if (!supabase) {
+      console.warn('[DatabasePerformance] Supabase not available, returning empty result');
+      return {
+        data: [],
+        pagination: {
+          page: 1,
+          limit: this.DEFAULT_PAGE_SIZE,
+          total: 0,
+          totalPages: 0,
+          hasNext: false,
+          hasPrev: false
+        }
+      };
+    }
+
     const {
       page = 1,
       limit = this.DEFAULT_PAGE_SIZE,
