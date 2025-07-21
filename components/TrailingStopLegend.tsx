@@ -68,14 +68,14 @@ export default function TrailingStopLegend({
                     <div className="w-2 h-0.5 bg-blue-500"></div>
                     <span className="text-gray-400">Entry:</span>
                     <span className="text-blue-400 font-mono">
-                      {formatSmartPrice(stop.entryPrice, stop.symbol)}
+                      {formatSmartPrice(stop.entryPrice, { includeSymbol: true })}
                     </span>
                   </div>
                   <div className="flex items-center gap-1">
                     <div className="w-2 h-0.5 bg-red-500"></div>
                     <span className="text-gray-400">Stop:</span>
                     <span className="text-red-400 font-mono">
-                      {formatSmartPrice(currentStopPrice, stop.symbol)}
+                      {formatSmartPrice(currentStopPrice, { includeSymbol: true })}
                     </span>
                   </div>
                 </div>
@@ -85,7 +85,7 @@ export default function TrailingStopLegend({
                     <div className="w-2 h-0.5 bg-green-500"></div>
                     <span className="text-gray-400">Target:</span>
                     <span className="text-green-400 font-mono">
-                      {formatSmartPrice(profitTarget, stop.symbol)}
+                      {formatSmartPrice(profitTarget, { includeSymbol: true })}
                     </span>
                   </div>
                   <div className="flex items-center gap-1">

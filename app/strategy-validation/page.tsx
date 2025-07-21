@@ -184,7 +184,11 @@ export default function StrategyValidationPage() {
     marketCondition: 'bullish' | 'bearish' | 'sideways'
   ): Promise<StrategyTestResult['performance']> => {
     // Get market data for analysis
-    const candles = await tradingApiService.getCandles(symbol, '1h', 100);
+    const rawCandles = await tradingApiService.getCandleData(symbol, '1h', 100);
+    const candles = rawCandles.map(candle => ({
+      ...candle,
+      date: new Date(candle.timestamp)
+    }));
     const analysis = await marketAnalysisService.analyzeMarket(symbol, candles);
 
     // Simulate strategy performance based on market conditions and analysis
@@ -262,12 +266,18 @@ export default function StrategyValidationPage() {
   };
 
   const getStrategyColor = (strategy: TrailingStopStrategy) => {
-    const colors = {
+    const colors: Record<TrailingStopStrategy, string> = {
       'percentage': 'blue',
       'atr': 'green',
       'bollinger_bands': 'purple',
       'support_resistance': 'orange',
-      'dynamic': 'cyan'
+      'dynamic': 'cyan',
+      'fibonacci': 'gold',
+      'volume_profile': 'magenta',
+      'smart_money': 'lime',
+      'ichimoku': 'volcano',
+      'pivot_points': 'geekblue',
+      'hybrid': 'red'
     };
     return colors[strategy] || 'default';
   };
@@ -494,7 +504,7 @@ export default function StrategyValidationPage() {
                   <div>
                     <Text strong>Symbols: </Text>
                     {scenario.symbols.map(symbol => (
-                      <Tag key={symbol} size="small">{symbol}</Tag>
+                      <Tag key={symbol} >{symbol}</Tag>
                     ))}
                   </div>
                 </Space>

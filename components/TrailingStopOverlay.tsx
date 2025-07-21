@@ -80,7 +80,7 @@ export default function TrailingStopOverlay({
         lineStyle: 1, // Dashed
         priceLineVisible: false,
         lastValueVisible: false,
-        title: `Entry: ${formatSmartPrice(stop.entryPrice, stop.symbol)}`,
+        title: `Entry: ${formatSmartPrice(stop.entryPrice)}`,
       });
 
       // Current stop loss line (red)
@@ -91,7 +91,7 @@ export default function TrailingStopOverlay({
         lineStyle: 0, // Solid
         priceLineVisible: true,
         lastValueVisible: true,
-        title: `Stop: ${formatSmartPrice(currentStopPrice, stop.symbol)}`,
+        title: `Stop: ${formatSmartPrice(currentStopPrice, { includeSymbol: true })}`,
       });
 
       // Trailing path (orange - shows how stop has moved)
@@ -203,8 +203,9 @@ export default function TrailingStopOverlay({
       
       if (!viz) {
         // Create new visualization
-        viz = createVisualization(stop);
-        if (viz) {
+        const newViz = createVisualization(stop);
+        if (newViz) {
+          viz = newViz;
           visualizationsRef.current.set(stop.stateKey, viz);
         }
       }

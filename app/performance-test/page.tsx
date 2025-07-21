@@ -258,8 +258,8 @@ export default function PerformanceTestPage() {
           <li><Text strong>Cache Warm-up:</Text> Chạy warm-up cache trước khi sử dụng để tăng hiệu suất</li>
           <li><Text strong>Memory Management:</Text> Clear cache định kỳ để tránh memory leak</li>
           <li><Text strong>Optimal Usage:</Text> Các hàm format được cache trong 30 giây, calculations trong 1 phút</li>
-          <li><Text strong>High Performance:</Text> Thời gian < 10ms là xuất sắc, < 50ms là tốt</li>
-          <li><Text strong>Cache Hit Rate:</Text> Tỷ lệ cache hit > 50% cho thấy optimization hiệu quả</li>
+          <li><Text strong>High Performance:</Text> Thời gian &lt; 10ms là xuất sắc, &lt; 50ms là tốt</li>
+          <li><Text strong>Cache Hit Rate:</Text> Tỷ lệ cache hit &gt; 50% cho thấy optimization hiệu quả</li>
         </ul>
       </Card>
     </div>

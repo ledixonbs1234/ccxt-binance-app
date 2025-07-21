@@ -84,11 +84,13 @@ export default function CardContainer({
       extra={headerExtra}
       loading={loading}
       className={`shadow-sm hover:shadow-md transition-shadow ${className}`}
-      bodyStyle={{
-        padding: size === 'small' ? '12px' : size === 'large' ? '32px' : '24px',
+      styles={{
+        body: {
+          padding: size === 'small' ? '12px' : size === 'large' ? '32px' : '24px',
+        }
       }}
-      size={size}
-      bordered={bordered}
+      size={size as 'small' | 'default'}
+      variant={bordered ? 'outlined' : 'borderless'}
       hoverable={hoverable}
       actions={actions}
     >

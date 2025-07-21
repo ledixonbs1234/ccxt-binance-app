@@ -1,4 +1,4 @@
-import { CandleData } from '@/types/trading';
+import { CandleData } from './historicalDataService';
 import { TrailingStopStrategy, TrailingStopPosition } from '@/types/trailingStop';
 
 export interface MarketCondition {
@@ -275,7 +275,7 @@ export class MarketAnalysisService {
       .map(([price, volume]) => ({
         price,
         volume,
-        significance: volume > 1000 ? 'high' : volume > 500 ? 'medium' : 'low'
+        significance: (volume > 1000 ? 'high' : volume > 500 ? 'medium' : 'low') as 'high' | 'medium' | 'low'
       }))
       .sort((a, b) => b.volume - a.volume);
 
@@ -492,12 +492,12 @@ export class MarketAnalysisService {
 
       if (analysis.marketCondition.volatility === 'high') {
         reasoning.push('Increased volatility requires parameter adjustment');
-        newParameters.trailingPercent = (position.strategyConfig?.trailingPercent || 2) * 1.3;
+        newParameters.trailingPercent = (position.trailingPercent || 2) * 1.3;
       }
 
       if (analysis.marketCondition.trend === 'sideways') {
         reasoning.push('Sideways market - tighter stops recommended');
-        newParameters.trailingPercent = (position.strategyConfig?.trailingPercent || 2) * 0.8;
+        newParameters.trailingPercent = (position.trailingPercent || 2) * 0.8;
       }
     }
 

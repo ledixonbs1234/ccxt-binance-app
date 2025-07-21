@@ -230,7 +230,7 @@ export default function DocumentationPage() {
         <div>{section.title}</div>
         <div style={{ fontSize: '12px', opacity: 0.7 }}>
           {section.tags.map(tag => (
-            <Tag key={tag} size="small" style={{ margin: '1px' }}>
+            <Tag key={tag}  style={{ margin: '1px' }}>
               {tag}
             </Tag>
           ))}
@@ -329,14 +329,14 @@ export default function DocumentationPage() {
                 <div className="documentation-content">
                   <ReactMarkdown
                     components={{
-                      code({ node, inline, className, children, ...props }) {
+                      code({ node, className, children, ...props }) {
+                        const inline = false;
                         const match = /language-(\w+)/.exec(className || '');
                         return !inline && match ? (
                           <SyntaxHighlighter
-                            style={tomorrow}
+                            style={tomorrow as any}
                             language={match[1]}
                             PreTag="div"
-                            {...props}
                           >
                             {String(children).replace(/\n$/, '')}
                           </SyntaxHighlighter>

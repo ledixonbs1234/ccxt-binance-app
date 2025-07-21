@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Card, Typography, Divider, Row, Col, Statistic, Tag, Alert } from 'antd';
+
+const { Title } = Typography;
 import {
   formatMicroCapPrice,
   isMicroCapToken,

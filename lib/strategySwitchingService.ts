@@ -4,8 +4,7 @@
  */
 
 import { TrailingStopStrategy, TrailingStopPosition } from '@/types/trailingStop';
-import { calculateTrailingStop, StrategyCalculationParams } from './strategyCalculations';
-import { CandleData } from '@/types/trading';
+import { calculateTrailingStop, StrategyCalculationParams, CandleData } from './strategyCalculations';
 
 export interface StrategySwitchingRule {
   id: string;

@@ -31,6 +31,7 @@ if (supabaseUrl && supabaseAnonKey) {
       }
     });
     console.log('Supabase client initialized successfully with performance optimizations');
+    console.warn('⚠️  Note: If you see "fetch failed" errors, check your Supabase URL and internet connection');
   } catch (error) {
     console.error('Error creating Supabase client:', error);
     supabase = null;

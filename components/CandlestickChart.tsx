@@ -518,6 +518,7 @@ export default function CandlestickChart({
       defaultStrategy: 'percentage',
       defaultTrailingPercent: 2.5,
       defaultMaxLoss: 5,
+      maxLossPercent: 5,
       atrPeriod: 14,
       atrMultiplier: 2,
       volatilityLookback: 20,
@@ -526,6 +527,45 @@ export default function CandlestickChart({
       maxRiskPerPosition: 2,
       updateInterval: 5000,
       priceChangeThreshold: 0.1,
+
+      // Advanced Strategy Settings
+      fibonacciSettings: {
+        levels: [0.236, 0.382, 0.5, 0.618, 0.786],
+        lookbackPeriod: 50,
+        defaultLevel: 0.618
+      },
+
+      bollingerSettings: {
+        period: 20,
+        stdDev: 2,
+        useUpperBand: true,
+        useLowerBand: true
+      },
+
+      volumeProfileSettings: {
+        period: 100,
+        valueAreaPercent: 70,
+        pocSensitivity: 0.1
+      },
+
+      smartMoneySettings: {
+        structureTimeframe: '1h',
+        liquidityLevels: 3,
+        orderBlockPeriod: 20
+      },
+
+      ichimokuSettings: {
+        tenkanSen: 9,
+        kijunSen: 26,
+        senkouSpanB: 52,
+        displacement: 26
+      },
+
+      pivotSettings: {
+        type: 'standard',
+        period: 'daily',
+        levels: 3
+      }
     });
     setEnhancedService(service);
   }, []);

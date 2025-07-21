@@ -280,7 +280,7 @@ export default function DemoHubPage() {
                         </Paragraph>
                         <div>
                           {demo.features.map((feature, idx) => (
-                            <Tag key={idx} size="small" style={{ marginBottom: '4px' }}>
+                            <Tag key={idx}  style={{ marginBottom: '4px' }}>
                               {feature}
                             </Tag>
                           ))}

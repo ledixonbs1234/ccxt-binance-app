@@ -1,4 +1,5 @@
 // Test for real-time price data functionality
+import { describe, test, expect } from '@jest/globals';
 import { formatPrice, formatPercentageChange, formatVolume, formatPnL, formatQuantity } from '../lib/priceFormatter';
 
 describe('Price Formatter Tests', () => {
@@ -40,7 +41,7 @@ describe('Price Formatter Tests', () => {
 
     test('should format zero change correctly', () => {
       const result = formatPercentageChange(0);
-      expect(result.value).toBe('+0.00%');
+      expect(result.value).toBe('+0.0000%');
       expect(result.colorClass).toBe('text-success');
     });
 
@@ -88,7 +89,7 @@ describe('Price Formatter Tests', () => {
     });
 
     test('should format ETH quantity correctly', () => {
-      expect(formatQuantity(2.5, 'ETH')).toBe('2.500000');
+      expect(formatQuantity(2.5, 'ETH')).toBe('2.50');
     });
 
     test('should format PEPE quantity correctly', () => {

@@ -397,7 +397,7 @@ export default function StrategyConfigPanel({
                 precision={1}
                 style={{ width: '100%' }}
                 formatter={value => `${value}%`}
-                parser={value => value!.replace('%', '')}
+                parser={(value: string | undefined) => parseFloat(value!.replace('%', '')) as any}
               />
             </Form.Item>
           </Col>
@@ -414,7 +414,7 @@ export default function StrategyConfigPanel({
                 precision={1}
                 style={{ width: '100%' }}
                 formatter={value => `${value}%`}
-                parser={value => value!.replace('%', '')}
+                parser={(value: string | undefined) => parseFloat(value!.replace('%', '')) as any}
               />
             </Form.Item>
           </Col>

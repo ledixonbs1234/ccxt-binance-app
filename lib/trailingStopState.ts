@@ -33,6 +33,11 @@ export const activeTrailingStops = new Map<string, TrailingStopState>();
 export const updateTrailingStopState = async (key: string, state: TrailingStopState) => {
     try {
         // 1. Upsert state to Supabase (using lowercase column names)
+        if (!supabase) {
+            console.warn(`[TrailingStopState] Database not available for ${key}`);
+            return;
+        }
+
         const { data, error } = await supabase
             .from('trailing_stops')
             .upsert({
@@ -104,17 +109,19 @@ export const removeTrailingStopState = async (key: string) => {
         activeTrailingStops.delete(key);
 
         // 3. Update status in database to 'cancelled' instead of deleting
-        const { error } = await supabase
-            .from('trailing_stops')
-            .update({
-                status: 'cancelled',
+        if (supabase) {
+            const { error } = await supabase
+                .from('trailing_stops')
+                .update({
+                    status: 'cancelled',
                 updated_at: new Date().toISOString()
             })
             .eq('statekey', key);
 
-        if (error) {
-            console.error(`[TrailingStopState] Error cancelling trailing stop ${key}:`, error);
-            throw error;
+            if (error) {
+                console.error(`[TrailingStopState] Error cancelling trailing stop ${key}:`, error);
+                throw error;
+            }
         }
 
         console.log(`[TrailingStopState] Successfully cancelled trailing stop ${key}`);
@@ -186,6 +193,11 @@ export const getActiveTrailingStops = getActiveSimulationsForClient;
 
 // Khôi phục các trailing stops từ Supabase khi khởi động server
 export const restoreTrailingStopsFromDB = async () => {
+    if (!supabase) {
+        console.warn('[TrailingStopState] Database not available for restoration');
+        return;
+    }
+
     const { data, error } = await supabase
         .from('trailing_stops')
         .select('*')
@@ -212,7 +224,7 @@ export const restoreTrailingStopsFromDB = async () => {
 
         // Restart the interval if the status is active
         if (trailingStopState.status === 'active') {
-            trailingStopState.checkInterval = setInterval(() => {
+            (trailingStopState as any).checkInterval = setInterval(() => {
                 // Add your logic to check and update the trailing stop here
                 // console.log(`[${trailingStopState.stateKey}] Checking trailing stop...`);
             }, 1000); // Example interval of 1 second
@@ -223,7 +235,12 @@ export const restoreTrailingStopsFromDB = async () => {
 export const initializeTrailingStopsTable = async () => {
     try {
         // Check if table exists by trying to select from it
-        const { data, error } = await supabase
+        if (!supabase) {
+            console.warn('[TrailingStopState] Database not available for initialization');
+            return;
+        }
+
+        const { error } = await supabase
             .from('trailing_stops')
             .select('*')
             .limit(1);

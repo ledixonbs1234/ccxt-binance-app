@@ -67,7 +67,7 @@ export default function BacktestDashboard({ className = '' }: BacktestDashboardP
       type: 'success',
       title: 'Strategy Saved',
       message: `Strategy "${strategy.name}" has been saved`,
-      category: 'backtesting',
+      category: 'system',
       priority: 'medium',
       persistent: false,
     });
@@ -81,7 +81,7 @@ export default function BacktestDashboard({ className = '' }: BacktestDashboardP
       type: 'info',
       title: 'Ready to Test',
       message: `Strategy "${strategy.name}" loaded for testing`,
-      category: 'backtesting',
+      category: 'system',
       priority: 'medium',
       persistent: false,
     });
@@ -95,7 +95,7 @@ export default function BacktestDashboard({ className = '' }: BacktestDashboardP
       type: 'success',
       title: 'Backtest Complete',
       message: 'View results in the Analytics tab',
-      category: 'backtesting',
+      category: 'system',
       priority: 'high',
       persistent: false,
     });
@@ -110,7 +110,7 @@ export default function BacktestDashboard({ className = '' }: BacktestDashboardP
       type: 'info',
       title: 'Strategy Loaded',
       message: `Strategy "${strategy.name}" loaded for editing`,
-      category: 'backtesting',
+      category: 'system',
       priority: 'medium',
       persistent: false,
     });
@@ -129,7 +129,7 @@ export default function BacktestDashboard({ className = '' }: BacktestDashboardP
       type: 'success',
       title: 'Strategy Deleted',
       message: 'Strategy has been removed',
-      category: 'backtesting',
+      category: 'system',
       priority: 'medium',
       persistent: false,
     });
@@ -351,7 +351,7 @@ export default function BacktestDashboard({ className = '' }: BacktestDashboardP
                   title={
                     <div className="flex items-center gap-2">
                       <span>{strategy.name}</span>
-                      <Tag color="blue" size="small">
+                      <Tag color="blue">
                         {strategy.type.replace('_', ' ')}
                       </Tag>
                     </div>

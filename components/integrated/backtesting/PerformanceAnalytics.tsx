@@ -18,8 +18,8 @@ import {
   Tooltip
 } from 'antd';
 import { 
-  TrendingUpOutlined,
-  TrendingDownOutlined,
+  WarningOutlined,
+  DingdingOutlined,
   InfoCircleOutlined,
   DownloadOutlined,
   ShareAltOutlined
@@ -287,7 +287,7 @@ export default function PerformanceAnalytics({
                   valueStyle={{ 
                     color: performance.totalReturn >= 0 ? '#3f8600' : '#cf1322' 
                   }}
-                  prefix={performance.totalReturn >= 0 ? <TrendingUpOutlined /> : <TrendingDownOutlined />}
+                  prefix={performance.totalReturn >= 0 ? <WarningOutlined /> : <DingdingOutlined />}
                 />
               </Card>
             </Col>
@@ -325,7 +325,7 @@ export default function PerformanceAnalytics({
                   precision={2}
                   suffix="%"
                   valueStyle={{ color: '#cf1322' }}
-                  prefix={<TrendingDownOutlined />}
+                  prefix={<DingdingOutlined />}
                 />
               </Card>
             </Col>

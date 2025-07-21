@@ -39,7 +39,7 @@ export async function GET(req: Request) {
     console.error('[Database Performance API] Error:', error);
     return NextResponse.json({
       success: false,
-      error: error.message,
+      error: error.message || 'Internal server error',
       timestamp: new Date().toISOString()
     }, { status: 500 });
   }
@@ -47,14 +47,24 @@ export async function GET(req: Request) {
 
 async function handleStatusCheck() {
   const startTime = Date.now();
-  
+
   try {
+    // Check if supabase client is available
+    if (!supabase) {
+      return NextResponse.json({
+        success: false,
+        status: 'error',
+        error: 'Database connection not available',
+        timestamp: new Date().toISOString()
+      }, { status: 503 });
+    }
+
     // Test database connection
-    const { data: connectionTest, error } = await supabase
+    const { error } = await supabase
       .from('orders')
       .select('count')
       .limit(1);
-    
+
     if (error) throw error;
 
     const responseTime = Date.now() - startTime;
@@ -101,21 +111,28 @@ async function handleStatusCheck() {
 async function handleDatabaseStats() {
   try {
     const stats = await databasePerformanceService.getDatabaseStats();
-    
+
+    // Calculate total size safely
+    const totalSize = stats.reduce((acc, stat) => {
+      const sizeMatch = stat.totalSize.match(/\d+/);
+      const size = sizeMatch ? parseInt(sizeMatch[0]) : 0;
+      return acc + size;
+    }, 0);
+
     return NextResponse.json({
       success: true,
       stats,
       summary: {
         totalTables: stats.length,
-        totalSize: stats.reduce((acc, stat) => acc + parseInt(stat.totalSize.replace(/\D/g, '')), 0),
-        largestTable: stats[0]?.tableName || 'N/A'
+        totalSize,
+        largestTable: stats.length > 0 ? stats[0].tableName : 'N/A'
       },
       timestamp: new Date().toISOString()
     });
   } catch (error: any) {
     return NextResponse.json({
       success: false,
-      error: error.message,
+      error: error.message || 'Failed to fetch database statistics',
       timestamp: new Date().toISOString()
     }, { status: 500 });
   }
@@ -124,16 +141,16 @@ async function handleDatabaseStats() {
 async function handleCacheStats() {
   try {
     const memoryStats = databasePerformanceService.getCacheStats();
-    
+
     // Get database cache stats
-    let dbCacheStats = null;
+    let dbCacheStats: { tradeCacheEntries: number; orderCacheEntries: number } | null = null;
     if (supabase) {
       try {
         const [tradeCache, orderCache] = await Promise.all([
           supabase.from('trade_history_cache').select('count'),
           supabase.from('order_history_cache').select('count')
         ]);
-        
+
         dbCacheStats = {
           tradeCacheEntries: tradeCache.data?.length || 0,
           orderCacheEntries: orderCache.data?.length || 0
@@ -153,7 +170,7 @@ async function handleCacheStats() {
   } catch (error: any) {
     return NextResponse.json({
       success: false,
-      error: error.message,
+      error: error.message || 'Failed to fetch cache statistics',
       timestamp: new Date().toISOString()
     }, { status: 500 });
   }
@@ -190,7 +207,7 @@ async function handleSlowQueries() {
   } catch (error: any) {
     return NextResponse.json({
       success: false,
-      error: error.message,
+      error: error.message || 'Failed to fetch slow queries',
       timestamp: new Date().toISOString()
     }, { status: 500 });
   }
@@ -216,13 +233,18 @@ async function handleCleanup() {
   } catch (error: any) {
     return NextResponse.json({
       success: false,
-      error: error.message,
+      error: error.message || 'Failed to perform cache cleanup',
       timestamp: new Date().toISOString()
     }, { status: 500 });
   }
 }
 
-function generateCacheRecommendations(stats: any): string[] {
+function generateCacheRecommendations(stats: {
+  hitRate: number;
+  expiredEntries: number;
+  validEntries: number;
+  memoryUsage: number;
+}): string[] {
   const recommendations: string[] = [];
   
   if (stats.hitRate < 0.3) {
@@ -249,7 +271,14 @@ function generateCacheRecommendations(stats: any): string[] {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { action } = body;
+    const { action }: { action: string } = body;
+
+    if (!action) {
+      return NextResponse.json({
+        error: 'Action parameter is required',
+        availableActions: ['clearCache', 'optimizeQueries']
+      }, { status: 400 });
+    }
 
     switch (action) {
       case 'clearCache':
@@ -282,9 +311,19 @@ export async function POST(req: Request) {
     }
   } catch (error: any) {
     console.error('[Database Performance API] POST Error:', error);
+
+    // Handle JSON parsing errors specifically
+    if (error instanceof SyntaxError) {
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid JSON in request body',
+        timestamp: new Date().toISOString()
+      }, { status: 400 });
+    }
+
     return NextResponse.json({
       success: false,
-      error: error.message,
+      error: error.message || 'Internal server error',
       timestamp: new Date().toISOString()
     }, { status: 500 });
   }

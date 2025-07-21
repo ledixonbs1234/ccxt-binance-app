@@ -39,9 +39,9 @@ const redisConfig = {
 };
 
 // Global variables
-let redis: Redis | null = null;
+let redis: typeof Redis | null = null;
 let isRedisAvailable = false;
-let trailingStopQueue: Queue | null = null;
+let trailingStopQueue: typeof Queue | null = null;
 let trailingStopWorker: Worker | null = null;
 
 // Initialize Redis connection
@@ -117,7 +117,7 @@ async function initializeWorker() {
   try {
     trailingStopWorker = new Worker(
       'trailing-stop-monitor',
-      async (job: Job<TrailingStopJobData>) => {
+      async (job: any) => {
     const { stateKey, symbol, entryPrice, trailingPercent, quantity, side, activationPrice, status } = job.data;
     
     try {
@@ -130,6 +130,11 @@ async function initializeWorker() {
       }
 
       // Get current state from Supabase
+      if (!supabase) {
+        console.warn(`[TrailingStopWorker] Database not available for ${stateKey}`);
+        return;
+      }
+
       const { data: currentState, error } = await supabase
         .from('trailing_stops')
         .select('*')
@@ -223,14 +228,16 @@ async function initializeWorker() {
       console.error(`[TrailingStopWorker] Error processing ${stateKey}:`, error);
       
       // Update error status in database
-      await supabase
-        .from('trailing_stops')
-        .update({
-          status: 'error',
+      if (supabase) {
+        await supabase
+          .from('trailing_stops')
+          .update({
+            status: 'error',
           errormessage: error instanceof Error ? error.message : 'Unknown error',
           updated_at: new Date().toISOString()
         })
         .eq('statekey', stateKey);
+      }
 
       throw error;
     }
@@ -351,6 +358,11 @@ export const initializeTrailingStopQueue = async () => {
     await trailingStopQueue!.obliterate({ force: true });
     
     // Restore active trailing stops from database
+    if (!supabase) {
+      console.warn('[TrailingStopQueue] Database not available for restoration');
+      return;
+    }
+
     const { data: activeStops, error } = await supabase
       .from('trailing_stops')
       .select('*')
@@ -392,8 +404,8 @@ export const shutdownTrailingStopQueue = async () => {
   try {
     console.log('[TrailingStopQueue] Shutting down queue system...');
 
-    if (trailingStopWorker) {
-      await trailingStopWorker.close();
+    if (trailingStopWorker && typeof (trailingStopWorker as any).close === 'function') {
+      await (trailingStopWorker as any).close();
     }
 
     if (trailingStopQueue) {

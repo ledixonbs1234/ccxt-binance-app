@@ -18,8 +18,8 @@ import {
   Divider
 } from 'antd';
 import { 
-  TrendingUpOutlined, 
-  TrendingDownOutlined, 
+  RiseOutlined,
+  FallOutlined,
   DollarOutlined,
   PercentageOutlined,
   BarChartOutlined,
@@ -217,7 +217,7 @@ export default function PerformanceDashboard() {
         duration: calculateDuration(position.createdAt, position.triggeredAt || Date.now()),
         strategy: STRATEGY_NAMES[position.strategy],
         timestamp: new Date(position.createdAt),
-        status: position.status === 'triggered' ? 'completed' : 'cancelled'
+        status: (position.status === 'triggered' ? 'completed' : 'cancelled') as 'completed' | 'active' | 'cancelled'
       }))
       .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
   };
@@ -546,7 +546,7 @@ export default function PerformanceDashboard() {
                   xField="strategy"
                   yField="pnl"
                   seriesField="strategy"
-                  color={({ pnl }) => pnl >= 0 ? '#52c41a' : '#ff4d4f'}
+                  color={({ pnl }: { pnl: number }) => pnl >= 0 ? '#52c41a' : '#ff4d4f'}
                   label={{
                     position: 'middle',
                     style: {

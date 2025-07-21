@@ -14,6 +14,13 @@ export async function GET() {
     const queueStats = await getQueueStats();
     
     // Get database statistics
+    if (!supabase) {
+      return NextResponse.json({
+        success: false,
+        error: 'Database connection not available'
+      }, { status: 503 });
+    }
+
     const { data: dbStats, error: dbError } = await supabase
       .from('trailing_stops')
       .select('status')

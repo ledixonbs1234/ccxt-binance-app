@@ -642,8 +642,9 @@ export default function StrategyIndicatorOverlay({
 
       if (!viz) {
         // Create new visualization
-        viz = createStrategyIndicators(position);
-        if (viz) {
+        const newViz = createStrategyIndicators(position);
+        if (newViz) {
+          viz = newViz;
           visualizationsRef.current.set(position.id, viz);
         }
       }

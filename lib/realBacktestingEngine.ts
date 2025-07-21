@@ -161,7 +161,7 @@ export class RealBacktestingEngine {
             pnl: netPnl,
             pnlPercent: (netPnl / (oldestPosition.entryPrice * oldestPosition.quantity)) * 100,
             duration: signal.timestamp - oldestPosition.entryTime,
-            reason: signal.reason,
+            reason: (['signal', 'stop_loss', 'take_profit', 'timeout', 'manual'].includes(signal.reason) ? signal.reason : 'signal') as 'signal' | 'stop_loss' | 'take_profit' | 'timeout' | 'manual',
             tags: [],
             metadata: { entryReason: oldestPosition.reason, exitReason: signal.reason }
           };
@@ -214,9 +214,9 @@ export class RealBacktestingEngine {
         pnl: netPnl,
         pnlPercent: (netPnl / (position.entryPrice * position.quantity)) * 100,
         duration: lastCandle.timestamp - position.entryTime,
-        reason: 'End of backtest',
+        reason: 'timeout',
         tags: [],
-        metadata: { entryReason: position.reason, exitReason: 'End of backtest' }
+        metadata: { entryReason: position.reason, exitReason: 'timeout' }
       };
       
       trades.push(trade);

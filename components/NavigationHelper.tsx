@@ -218,7 +218,7 @@ export default function NavigationHelper() {
                   </ul>
                 }
                 type="success"
-                size="small"
+                
               />
               
               <Alert
@@ -231,7 +231,7 @@ export default function NavigationHelper() {
                   </ul>
                 }
                 type="warning"
-                size="small"
+                
               />
             </Space>
           </Card>

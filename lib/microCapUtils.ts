@@ -86,6 +86,7 @@ class PerformanceCache<T> {
 // Global caches for different types of calculations
 const formatCache = new PerformanceCache<string>(500, 30000); // 30 seconds for formatting
 const calculationCache = new PerformanceCache<number>(300, 60000); // 1 minute for calculations
+const formatTypeCache = new PerformanceCache<'scientific' | 'decimal' | 'standard'>(300, 60000); // 1 minute for format types
 const analysisCache = new PerformanceCache<any>(200, 120000); // 2 minutes for analysis
 
 // Memoization decorator for expensive functions
@@ -153,7 +154,7 @@ export const getMicroCapFormatType = memoize(
 
     return 'standard';
   },
-  calculationCache,
+  formatTypeCache,
   (price: number) => `format_type_${price}`
 );
 
@@ -387,11 +388,21 @@ export function convertMicroCapUnits(price: number): {
   original: number;
   inSatoshis?: number;
   inGwei?: number;
-  multiplier?: number;
-  unit?: string;
+  multiplier: number;
+  unit: string;
 } {
-  const result = { original: price };
-  
+  const result: {
+    original: number;
+    inSatoshis?: number;
+    inGwei?: number;
+    multiplier: number;
+    unit: string;
+  } = {
+    original: price,
+    multiplier: 1,
+    unit: 'standard'
+  };
+
   if (price < 0.000001) {
     // Convert to satoshis (1e-8)
     result.inSatoshis = price * 1e8;
@@ -403,7 +414,7 @@ export function convertMicroCapUnits(price: number): {
     result.multiplier = 1e9;
     result.unit = 'gwei';
   }
-  
+
   return result;
 }
 

@@ -238,6 +238,7 @@ export default function AIBacktestingPanel({ className }: AIBacktestingPanelProp
                   key: 'config',
                   label: '⚙️ Cấu hình',
                   children: (
+                <div>
                 <Form
                   form={form}
                   layout="vertical"
@@ -315,7 +316,7 @@ export default function AIBacktestingPanel({ className }: AIBacktestingPanelProp
                           step={1000}
                           style={{ width: '100%' }}
                           formatter={(value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                          parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
+                          parser={(value) => Number(value!.replace(/\$\s?|(,*)/g, '')) as any}
                         />
                       </Form.Item>
                     </Col>
@@ -332,7 +333,7 @@ export default function AIBacktestingPanel({ className }: AIBacktestingPanelProp
                           step={1}
                           style={{ width: '100%' }}
                           formatter={(value) => `${value}%`}
-                          parser={(value) => value!.replace('%', '')}
+                          parser={(value) => Number(value!.replace('%', '')) as any}
                         />
                       </Form.Item>
                     </Col>
@@ -362,7 +363,10 @@ export default function AIBacktestingPanel({ className }: AIBacktestingPanelProp
                               step={0.01}
                               style={{ width: '50%' }}
                               formatter={(value) => `${value}%`}
-                              parser={(value) => value!.replace('%', '')}
+                              parser={(value) => {
+                                const parsed = parseFloat(value?.replace('%', '') || '0');
+                                return (parsed >= 0 && parsed <= 1) ? parsed as (0 | 1) : 0;
+                              }}
                             />
                           </Form.Item>
                           <Form.Item name="slippage" noStyle>
@@ -373,7 +377,10 @@ export default function AIBacktestingPanel({ className }: AIBacktestingPanelProp
                               style={{ width: '50%' }}
                               placeholder="Slippage"
                               formatter={(value) => `${value}%`}
-                              parser={(value) => value!.replace('%', '')}
+                              parser={(value) => {
+                                const parsed = parseFloat(value?.replace('%', '') || '0');
+                                return (parsed >= 0 && parsed <= 1) ? parsed as (0 | 1) : 0;
+                              }}
                             />
                           </Form.Item>
                         </Space.Compact>
@@ -494,44 +501,48 @@ export default function AIBacktestingPanel({ className }: AIBacktestingPanelProp
                     </Space>
                   </Col>
                 </Row>
+                </div>
                   )
                 },
                 {
                   key: 'progress',
                   label: '📊 Tiến độ',
                   children: (
-                {progress ? (
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    <Progress
-                      percent={Math.round(progress.progress)}
-                      status={isRunning ? 'active' : 'success'}
-                      strokeColor={{
-                        '0%': '#108ee9',
-                        '100%': '#87d068',
-                      }}
-                    />
-                    <Text>{progress.currentStepVi}</Text>
-                    <Text type="secondary">
-                      Đã xử lý: {progress.processedCandles}/{progress.totalCandles} nến
-                    </Text>
-                    {progress.currentDate && (
-                      <Text type="secondary">
-                        Ngày hiện tại: {progress.currentDate}
-                      </Text>
-                    )}
-                  </Space>
-                ) : (
-                  <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                    <Text type="secondary">Chưa có tiến độ nào để hiển thị</Text>
-                  </div>
-                )}
+                    <div>
+                      {progress ? (
+                        <Space direction="vertical" style={{ width: '100%' }}>
+                          <Progress
+                            percent={Math.round(progress.progress)}
+                            status={isRunning ? 'active' : 'success'}
+                            strokeColor={{
+                              '0%': '#108ee9',
+                              '100%': '#87d068',
+                            }}
+                          />
+                          <Text>{progress.currentStepVi}</Text>
+                          <Text type="secondary">
+                            Đã xử lý: {progress.processedCandles}/{progress.totalCandles} nến
+                          </Text>
+                          {progress.currentDate && (
+                            <Text type="secondary">
+                              Ngày hiện tại: {progress.currentDate}
+                            </Text>
+                          )}
+                        </Space>
+                      ) : (
+                        <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                          <Text type="secondary">Chưa có tiến độ nào để hiển thị</Text>
+                        </div>
+                      )}
+                    </div>
                   )
                 },
                 {
                   key: 'results',
                   label: '📈 Kết quả',
                   children: (
-                {results.length > 0 ? (
+                    <div>
+                      {results.length > 0 ? (
                   <Space direction="vertical" style={{ width: '100%' }}>
                     <Row gutter={[16, 16]}>
                       <Col span={24}>
@@ -606,7 +617,8 @@ export default function AIBacktestingPanel({ className }: AIBacktestingPanelProp
                     <br />
                     <Text type="secondary">Hãy cấu hình và chạy backtest để xem kết quả</Text>
                   </div>
-                )}
+                      )}
+                    </div>
                   )
                 }
               ]}

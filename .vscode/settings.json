@@ -1,2 +1,4 @@
 {
+    "typescript.validate.enable": true,
+    "typescript.tsserver.experimental.enableProjectDiagnostics": true
 }

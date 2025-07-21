@@ -1,6 +1,6 @@
 // Backtesting Engine for Enhanced Trailing Stop Strategies
 import { historicalDataService, CandleData, Timeframe } from './historicalDataService';
-import { strategyCalculations } from './strategyCalculations';
+import { calculateTrailingStop } from './strategyCalculations';
 import { TrailingStopStrategy } from '@/types/trailingStop';
 import { BacktestingEngineHelpers } from './backtestingEngine-part2';
 
@@ -462,3 +462,4 @@ export class BacktestingEngine {
     // Update unrealized P&L
     trade.unrealizedPnL = (candle.close - trade.entryPrice) * trade.quantity - trade.fees;
   }
+}

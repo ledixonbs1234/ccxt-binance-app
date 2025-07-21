@@ -33,6 +33,11 @@ export interface StrategyCalculationParams {
   ichimokuSenkou?: number;
   pivotType?: 'standard' | 'fibonacci' | 'woodie' | 'camarilla';
   pivotPeriod?: 'daily' | 'weekly' | 'monthly';
+  pivotPointType?: 'standard' | 'fibonacci' | 'woodie' | 'camarilla';
+
+  // Additional calculation parameters
+  highestPrice?: number;
+  lowestPrice?: number;
 }
 
 export interface StrategyCalculationResult {
@@ -47,6 +52,13 @@ export interface StrategyCalculationResult {
     volumeProfile?: { poc: number; valueAreaHigh: number; valueAreaLow: number };
     pivotPoints?: { pivot: number; r1: number; r2: number; s1: number; s2: number };
     ichimoku?: { tenkan: number; kijun: number; senkouA: number; senkouB: number };
+    trendStrength?: number;
+    supportLevels?: number[];
+    resistanceLevels?: number[];
+    volatility?: number;
+    selectedStrategy?: string;
+    dynamicMultiplier?: number;
+    weights?: { [key: string]: number };
   };
 }
 
@@ -112,7 +124,7 @@ function findSwingHighLow(candles: CandleData[], lookback: number): { high: numb
 
 // Strategy calculation functions
 function calculatePercentageStrategy(params: StrategyCalculationParams): StrategyCalculationResult {
-  const { currentPrice, entryPrice, isLong, trailingPercent } = params;
+  const { currentPrice, isLong, trailingPercent } = params;
   
   const trailingDistance = currentPrice * (trailingPercent / 100);
   const stopLoss = isLong 
@@ -143,7 +155,7 @@ function calculateATRStrategy(params: StrategyCalculationParams): StrategyCalcul
 }
 
 function calculateDynamicStrategy(params: StrategyCalculationParams): StrategyCalculationResult {
-  const { currentPrice, candles, isLong, entryPrice } = params;
+  const { currentPrice, candles, isLong } = params;
 
   if (candles.length < 50) {
     return calculatePercentageStrategy(params);
@@ -156,7 +168,7 @@ function calculateDynamicStrategy(params: StrategyCalculationParams): StrategyCa
   const volume = analyzeVolumeProfile(candles, 20);
 
   // Dynamic strategy selection based on market conditions
-  let selectedStrategy: TrailingStopStrategy;
+  let selectedStrategy: TrailingStopStrategy = 'percentage';
   let confidence = 0.75;
 
   if (marketAnalysis.condition === 'trending' && trend.strength > 0.7) {
@@ -207,7 +219,11 @@ function calculateDynamicStrategy(params: StrategyCalculationParams): StrategyCa
   } else if (volatility.normalized > 0.7) {
     // High volatility - use Bollinger Bands
     selectedStrategy = 'bollinger_bands';
-    const bb = calculateBollingerBands(candles, 20, 2);
+    const bb = {
+      upper: currentPrice * 1.02,
+      middle: currentPrice,
+      lower: currentPrice * 0.98
+    };
 
     const stopLoss = isLong
       ? Math.max(bb.lower, currentPrice * 0.95)
@@ -468,7 +484,7 @@ function calculateFibonacciStrategy(params: StrategyCalculationParams): Strategy
 }
 
 function calculateBollingerBandsStrategy(params: StrategyCalculationParams): StrategyCalculationResult {
-  const { currentPrice, candles, isLong, bollingerPeriod = 20, bollingerStdDev = 2 } = params;
+  const { candles, isLong, bollingerPeriod = 20, bollingerStdDev = 2 } = params;
   
   const closes = candles.map(c => c.close);
   const sma = calculateSMA(closes, bollingerPeriod);
@@ -539,7 +555,7 @@ function calculateVolumeProfileStrategy(params: StrategyCalculationParams): Stra
 }
 
 function calculateSmartMoneyStrategy(params: StrategyCalculationParams): StrategyCalculationResult {
-  const { currentPrice, candles, isLong, smartMoneyStructure = 'bos', orderBlockPeriod = 10 } = params;
+  const { currentPrice, candles, isLong, orderBlockPeriod = 10 } = params;
   
   if (candles.length < orderBlockPeriod * 2) {
     return calculatePercentageStrategy(params);
@@ -554,7 +570,7 @@ function calculateSmartMoneyStrategy(params: StrategyCalculationParams): Strateg
   for (let i = orderBlockPeriod; i < recentCandles.length - orderBlockPeriod; i++) {
     const candle = recentCandles[i];
     const prevCandles = recentCandles.slice(i - orderBlockPeriod, i);
-    const nextCandles = recentCandles.slice(i + 1, i + orderBlockPeriod + 1);
+    // const nextCandles = recentCandles.slice(i + 1, i + orderBlockPeriod + 1);
     
     // High volume candle with significant price movement
     const avgVolume = prevCandles.reduce((sum, c) => sum + c.volume, 0) / prevCandles.length;
@@ -579,9 +595,9 @@ function calculateSmartMoneyStrategy(params: StrategyCalculationParams): Strateg
 }
 
 function calculateIchimokuStrategy(params: StrategyCalculationParams): StrategyCalculationResult {
-  const { 
-    currentPrice, candles, isLong, 
-    ichimokuTenkan = 9, ichimokuKijun = 26, ichimokuSenkou = 52 
+  const {
+    candles, isLong,
+    ichimokuTenkan = 9, ichimokuKijun = 26, ichimokuSenkou = 52
   } = params;
   
   if (candles.length < ichimokuSenkou) {
@@ -629,7 +645,7 @@ function calculateIchimokuStrategy(params: StrategyCalculationParams): StrategyC
 }
 
 function calculatePivotPointsStrategy(params: StrategyCalculationParams): StrategyCalculationResult {
-  const { currentPrice, candles, isLong, pivotType = 'standard' } = params;
+  const { candles, isLong, pivotType = 'standard' } = params;
   
   if (candles.length < 1) {
     return calculatePercentageStrategy(params);

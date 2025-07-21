@@ -135,7 +135,7 @@ export default function BacktestRunner({
         type: 'error',
         title: 'No Strategy',
         message: 'Please create or select a strategy first',
-        category: 'backtesting',
+        category: 'trading',
         priority: 'high',
         persistent: true,
       });
@@ -217,7 +217,7 @@ export default function BacktestRunner({
         type: 'success',
         title: 'Backtest Complete',
         message: `Strategy "${strategy.name}" backtested successfully`,
-        category: 'backtesting',
+        category: 'trading',
         priority: 'high',
         persistent: false,
       });
@@ -227,7 +227,7 @@ export default function BacktestRunner({
         type: 'error',
         title: 'Backtest Failed',
         message: error.message || 'An error occurred during backtesting',
-        category: 'backtesting',
+        category: 'trading',
         priority: 'high',
         persistent: true,
       });
@@ -322,7 +322,7 @@ export default function BacktestRunner({
       type: 'warning',
       title: 'Backtest Stopped',
       message: 'Backtest was stopped by user',
-      category: 'backtesting',
+      category: 'trading',
       priority: 'medium',
       persistent: false,
     });

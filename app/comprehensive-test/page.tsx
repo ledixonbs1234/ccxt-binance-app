@@ -24,7 +24,7 @@ import {
   LoadingOutlined,
   BugOutlined,
   RocketOutlined,
-  ShieldOutlined,
+  SafetyOutlined,
   ExperimentOutlined
 } from '@ant-design/icons';
 import PageContainer from '@/components/PageContainer';
@@ -296,7 +296,7 @@ export default function ComprehensiveTestPage() {
               value={totalTests > 0 ? (passedTests / totalTests * 100).toFixed(1) : 0}
               suffix="%"
               valueStyle={{ color: passedTests === totalTests ? '#52c41a' : '#faad14' }}
-              prefix={<ShieldOutlined />}
+              prefix={<SafetyOutlined />}
             />
           </Card>
         </Col>
@@ -363,7 +363,7 @@ export default function ComprehensiveTestPage() {
                       title={
                         <Space>
                           <Text>{test.name}</Text>
-                          <Tag color={getStatusColor(test.status)} size="small">
+                          <Tag color={getStatusColor(test.status)}>
                             {test.status.toUpperCase()}
                           </Tag>
                         </Space>

@@ -37,6 +37,7 @@ export class EnhancedTrailingStopService {
     entryPrice?: number;
     strategy: TrailingStopStrategy;
     strategyConfig: Record<string, any>; // Strategy-specific configuration from StrategyConfigPanel
+    trailingPercent?: number;
     maxLossPercent?: number;
     activationPrice?: number;
     accountBalance?: number;
@@ -85,6 +86,7 @@ export class EnhancedTrailingStopService {
 
       // Strategy configuration
       strategy: config.strategy,
+      trailingPercent: config.trailingPercent || this.settings.defaultTrailingPercent,
       ...strategyParams,
 
       // Risk management
@@ -106,11 +108,26 @@ export class EnhancedTrailingStopService {
       // Chart data
       chartData: {
         entryPoint: { time: Date.now(), price: entryPrice, color: '#3b82f6' },
+        currentStopLevel: { time: Date.now(), price: initialStopLoss, color: '#ef4444' },
         currentPoint: { time: Date.now(), price: currentPrice, color: '#10b981' },
         stopLossPoint: { time: Date.now(), price: initialStopLoss, color: '#ef4444' },
         trailingPath: [],
-        profitZone: { min: entryPrice, max: currentPrice, color: '#10b981' },
-        lossZone: { min: initialStopLoss, max: entryPrice, color: '#ef4444' },
+        profitZone: {
+          topPrice: Math.max(entryPrice, currentPrice),
+          bottomPrice: Math.min(entryPrice, currentPrice),
+          color: '#10b981',
+          opacity: 0.2,
+          min: entryPrice,
+          max: currentPrice
+        },
+        lossZone: {
+          topPrice: Math.max(initialStopLoss, entryPrice),
+          bottomPrice: Math.min(initialStopLoss, entryPrice),
+          color: '#ef4444',
+          opacity: 0.2,
+          min: initialStopLoss,
+          max: entryPrice
+        },
         indicators: {},
         confidence: 0.8
       }
@@ -1158,7 +1175,7 @@ export class EnhancedTrailingStopService {
   /**
    * Get all positions (including completed ones) for performance analysis
    */
-  getAllPositions(): TrailingStopPosition[] {
+  getAllPositionsForAnalysis(): TrailingStopPosition[] {
     return Array.from(this.positions.values());
   }
 }
@@ -1175,7 +1192,43 @@ const defaultSettings: TrailingStopSettings = {
   maxPositions: 10,
   maxRiskPerPosition: 2.0,
   updateInterval: 5000,
-  priceChangeThreshold: 0.1
+  priceChangeThreshold: 0.1,
+
+  // Advanced Strategy Settings
+  fibonacciSettings: {
+    levels: [0.236, 0.382, 0.5, 0.618, 0.786],
+    lookbackPeriod: 50,
+    defaultLevel: 0.618
+  },
+  bollingerSettings: {
+    period: 20,
+    stdDev: 2,
+    useUpperBand: true,
+    useLowerBand: true
+  },
+  volumeProfileSettings: {
+    period: 100,
+    valueAreaPercent: 70,
+    pocSensitivity: 0.1
+  },
+  smartMoneySettings: {
+    structureTimeframe: '1h',
+    liquidityLevels: 3,
+    orderBlockPeriod: 20
+  },
+  ichimokuSettings: {
+    tenkanSen: 9,
+    kijunSen: 26,
+    senkouSpanB: 52,
+    displacement: 26
+  },
+  pivotSettings: {
+    type: 'standard',
+    period: 'daily',
+    levels: 3
+  },
+
+  maxLossPercent: 5.0
 };
 
 // Export singleton instance

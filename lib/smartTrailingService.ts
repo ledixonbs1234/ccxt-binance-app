@@ -1,6 +1,6 @@
 // File: lib/smartTrailingService.ts
 import { EventEmitter } from 'events';
-import ccxt, { Ticker, OHLCV, Order, Exchange } from 'ccxt';
+import ccxt, { OHLCV, Exchange } from 'ccxt';
 
 // Interfaces
 export interface SmartTrailingSettings {

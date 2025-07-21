@@ -94,7 +94,7 @@ export default function NotificationsPage() {
                 message="Test the notification system"
                 description="Click the buttons below to send test notifications and see how they appear"
                 type="info"
-                size="small"
+                
               />
               
               <Button 

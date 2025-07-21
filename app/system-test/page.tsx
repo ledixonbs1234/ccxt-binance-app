@@ -169,9 +169,9 @@ export default function SystemTestPage() {
     updateTestResult(suiteIndex, 0, { status: 'running' });
     try {
       const startTime = Date.now();
-      const position = await enhancedTrailingStopService.createAdvancedPosition({
+      const position = await enhancedTrailingStopService.createPositionWithStrategy({
         symbol: 'BTC/USDT',
-        side: 'long',
+        side: 'buy',
         quantity: 0.001,
         entryPrice: 45000,
         strategy: 'percentage',
@@ -197,7 +197,7 @@ export default function SystemTestPage() {
       const startTime = Date.now();
       const positions = enhancedTrailingStopService.getAllPositions();
       if (positions.length > 0) {
-        await enhancedTrailingStopService.updatePosition(positions[0].id, 45100);
+        await enhancedTrailingStopService.updatePosition(positions[0].id);
         const duration = Date.now() - startTime;
         updateTestResult(suiteIndex, 1, { 
           status: 'passed', 
@@ -285,7 +285,11 @@ export default function SystemTestPage() {
     updateTestResult(suiteIndex, 0, { status: 'running' });
     try {
       const startTime = Date.now();
-      const candles = await tradingApiService.getCandles('BTC/USDT', '1h', 100);
+      const rawCandles = await tradingApiService.getCandleData('BTC/USDT', '1h', 100);
+      const candles = rawCandles.map(candle => ({
+        ...candle,
+        date: new Date(candle.timestamp)
+      }));
       const analysis = await marketAnalysisService.analyzeMarket('BTC/USDT', candles);
       const duration = Date.now() - startTime;
       updateTestResult(suiteIndex, 0, { 
@@ -536,7 +540,7 @@ export default function SystemTestPage() {
                     title={
                       <Space>
                         <Text>{test.name}</Text>
-                        <Tag color={getStatusColor(test.status)} size="small">
+                        <Tag color={getStatusColor(test.status)} >
                           {test.status.toUpperCase()}
                         </Tag>
                         {test.duration && (

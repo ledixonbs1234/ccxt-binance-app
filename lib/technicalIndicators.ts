@@ -84,9 +84,9 @@ export class TechnicalIndicatorsService {
     return macdValues.map((value, index) => ({
       timestamp: candles[index + slowPeriod - 1]?.timestamp || 0,
       value: {
-        MACD: value.MACD,
-        signal: value.signal,
-        histogram: value.histogram
+        MACD: value.MACD ?? 0,
+        signal: value.signal ?? 0,
+        histogram: value.histogram ?? 0
       }
     })).filter(item => item.timestamp > 0);
   }
@@ -95,8 +95,8 @@ export class TechnicalIndicatorsService {
    * Calculate Stochastic Oscillator
    */
   static calculateStochastic(
-    candles: CandleData[], 
-    kPeriod: number = 14, 
+    candles: CandleData[],
+    period: number = 14,
     dPeriod: number = 3
   ): IndicatorResult[] {
     const input = candles.map(c => ({
@@ -104,17 +104,17 @@ export class TechnicalIndicatorsService {
       low: c.low,
       close: c.close
     }));
-    
+
     const stochValues = Stochastic.calculate({
       high: input.map(i => i.high),
       low: input.map(i => i.low),
       close: input.map(i => i.close),
-      kPeriod,
-      dPeriod
+      period: period,
+      signalPeriod: dPeriod
     });
     
     return stochValues.map((value, index) => ({
-      timestamp: candles[index + kPeriod - 1]?.timestamp || 0,
+      timestamp: candles[index + period - 1]?.timestamp || 0,
       value: {
         k: value.k,
         d: value.d

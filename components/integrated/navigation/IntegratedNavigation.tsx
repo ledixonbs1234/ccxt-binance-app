@@ -71,7 +71,7 @@ const navigationItems: NavigationItem[] = [
 
 export default function IntegratedNavigation({ className = '', onNavigate }: NavigationProps) {
   const pathname = usePathname();
-  const { state: userState, logout } = useUser();
+  const { state: userState, logout, isAuthenticated } = useUser();
   // const { t } = useTranslations(); // Temporarily disabled
   const t = (key: string) => key; // Simple fallback
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -190,7 +190,7 @@ export default function IntegratedNavigation({ className = '', onNavigate }: Nav
             </Badge>
 
             {/* User Menu */}
-            {userState.isAuthenticated ? (
+            {isAuthenticated ? (
               <Dropdown
                 menu={{ items: userMenuItems }}
                 placement="bottomRight"
@@ -253,7 +253,7 @@ export default function IntegratedNavigation({ className = '', onNavigate }: Nav
         <MobileMenu />
 
         {/* Mobile User Section */}
-        {userState.isAuthenticated && (
+        {isAuthenticated && (
           <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
             <div className="flex items-center gap-3 mb-4">
               <Avatar

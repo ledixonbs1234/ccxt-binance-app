@@ -27,12 +27,13 @@ import {
 import { useEnhancedTrading } from '../../../contexts/integrated/EnhancedTradingContext';
 import { useMarket } from '../../../contexts/integrated/MarketContext';
 import { useNotification } from '../../../contexts/integrated/NotificationContext';
+import { useWebSocket } from '../../../contexts/integrated/WebSocketContext';
 import OrderForm from './OrderForm';
 import PositionManager from './PositionManager';
 import OrderHistory from './OrderHistory';
 import CoinListingTable from '../home/CoinListingTable';
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 
 interface TradingDashboardProps {
   className?: string;
@@ -42,6 +43,7 @@ export default function TradingDashboard({ className = '' }: TradingDashboardPro
   const { state: tradingState, refreshAccount } = useEnhancedTrading();
   const { state: marketState } = useMarket();
   const { addNotification } = useNotification();
+  const { state: webSocketState } = useWebSocket();
   
   const [activeTab, setActiveTab] = useState('trading');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -104,7 +106,7 @@ export default function TradingDashboard({ className = '' }: TradingDashboardPro
             <CoinListingTable 
               showFilters={false}
               pageSize={10}
-              onCoinSelect={(coin) => {
+              onCoinSelect={(_coin) => {
                 // Handle coin selection for trading
               }}
             />
@@ -136,9 +138,9 @@ export default function TradingDashboard({ className = '' }: TradingDashboardPro
 
   // Calculate account summary
   const accountSummary = {
-    totalBalance: tradingState.account.balance + tradingState.account.lockedBalance,
+    totalBalance: tradingState.account.balance + tradingState.account.marginUsed,
     availableBalance: tradingState.account.balance,
-    lockedBalance: tradingState.account.lockedBalance,
+    lockedBalance: tradingState.account.marginUsed,
     totalPositionValue: tradingState.positions.reduce((sum, pos) => 
       sum + (pos.size * pos.currentPrice), 0
     ),
@@ -245,10 +247,28 @@ export default function TradingDashboard({ className = '' }: TradingDashboardPro
         </Row>
 
         {/* Connection Status */}
-        {tradingState.isConnected ? (
+        {webSocketState.globalStatus === 'connected' ? (
           <Alert
             message="Connected to Exchange"
             type="success"
+            showIcon
+            className="mt-4"
+            banner
+          />
+        ) : webSocketState.globalStatus === 'partial' ? (
+          <Alert
+            message="Partially Connected to Exchange"
+            description="Some connections are active. Some features may be limited."
+            type="info"
+            showIcon
+            className="mt-4"
+            banner
+          />
+        ) : webSocketState.globalStatus === 'error' ? (
+          <Alert
+            message="Connection Error"
+            description="Failed to connect to exchange. Please check your connection and try again."
+            type="error"
             showIcon
             className="mt-4"
             banner

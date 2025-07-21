@@ -293,7 +293,7 @@ export default function AnalyticsDashboard({ className = '' }: AnalyticsDashboar
                     <Tag color={
                       position.risk === 'High' ? 'red' : 
                       position.risk === 'Medium' ? 'orange' : 'green'
-                    } size="small">
+                    }>
                       {position.risk}
                     </Tag>
                   </div>
@@ -379,7 +379,7 @@ export default function AnalyticsDashboard({ className = '' }: AnalyticsDashboar
                     type: 'success',
                     title: 'Data Refreshed',
                     message: 'Analytics data updated successfully',
-                    category: 'analytics',
+                    category: 'system',
                     priority: 'low',
                     persistent: false,
                   });
@@ -395,7 +395,7 @@ export default function AnalyticsDashboard({ className = '' }: AnalyticsDashboar
                     type: 'info',
                     title: 'Export Started',
                     message: 'Analytics report is being generated',
-                    category: 'analytics',
+                    category: 'system',
                     priority: 'medium',
                     persistent: false,
                   });

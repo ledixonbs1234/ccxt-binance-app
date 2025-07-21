@@ -27,7 +27,13 @@ export interface TrailingStopPosition {
     senkouSpanB: number;
   };
   pivotPointType?: 'standard' | 'fibonacci' | 'woodie' | 'camarilla';
-  
+
+  // Additional Strategy Properties
+  atrPeriod?: number;
+  ichimokuTenkan?: number;
+  ichimokuKijun?: number;
+  ichimokuSenkou?: number;
+
   // Risk Management
   maxLossPercent: number;
   profitProtectionPercent?: number;
@@ -60,6 +66,12 @@ export interface TrailingStopChartData {
   profitZone: ChartZone;
   lossZone: ChartZone;
   supportResistanceLevels?: ChartPoint[];
+  indicators?: any;
+  confidence?: number;
+  supportLevel?: number;
+  resistanceLevel?: number;
+  currentPoint?: ChartPoint;
+  stopLossPoint?: ChartPoint;
 }
 
 export interface ChartPoint {
@@ -74,6 +86,8 @@ export interface ChartZone {
   bottomPrice: number;
   color: string;
   opacity: number;
+  min?: number;
+  max?: number;
 }
 
 export type TrailingStopStrategy =
@@ -145,6 +159,7 @@ export interface TrailingStopSettings {
   // Risk Management
   maxPositions: number;
   maxRiskPerPosition: number;
+  maxLossPercent: number;
 
   // Performance Optimization
   updateInterval: number;

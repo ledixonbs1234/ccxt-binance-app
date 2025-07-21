@@ -68,6 +68,13 @@ export async function POST(req: Request) {
             updated_at: new Date().toISOString()
         };
 
+        if (!supabase) {
+            return NextResponse.json({
+                success: false,
+                error: 'Database connection not available'
+            }, { status: 503 });
+        }
+
         const { data, error } = await supabase
             .from('orders')
             .insert(enrichedOrderData)

@@ -254,7 +254,7 @@ export default function StrategySelector({
             <Option key={strategy.id} value={strategy.id}>
               <Space>
                 <span>{strategy.nameVi}</span>
-                <Tag color={getComplexityColor(strategy.complexity)} size="small">
+                <Tag color={getComplexityColor(strategy.complexity)}>
                   {strategy.complexity}
                 </Tag>
               </Space>
@@ -318,7 +318,7 @@ export default function StrategySelector({
                   </Text>
                   <div style={{ marginTop: 4 }}>
                     {currentMetadata.requiredIndicators.map((indicator) => (
-                      <Tag key={indicator} size="small" style={{ margin: '2px' }}>
+                      <Tag key={indicator} style={{ margin: '2px', fontSize: '12px' }}>
                         {indicator}
                       </Tag>
                     ))}

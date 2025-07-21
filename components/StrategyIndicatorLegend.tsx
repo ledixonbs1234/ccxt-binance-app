@@ -92,6 +92,13 @@ const STRATEGY_METADATA = {
     color: '#096dd9',
     indicators: ['Smart Money Flow'],
     description: 'Theo dõi dòng tiền thông minh'
+  },
+  dynamic: {
+    name: 'Dynamic',
+    icon: <FunctionOutlined />,
+    color: '#f759ab',
+    indicators: ['Volatility Index', 'ATR', 'Standard Deviation'],
+    description: 'Thích ứng với volatility thị trường'
   }
 };
 
@@ -121,10 +128,10 @@ export default function StrategyIndicatorLegend({
 
   return (
     <div className="absolute bottom-4 left-4 z-10 max-w-md">
-      <Card 
-        size="small" 
+      <Card
+        size="small"
         className="bg-background/95 backdrop-blur-sm border border-border shadow-lg"
-        bodyStyle={{ padding: '12px' }}
+        styles={{ body: { padding: '12px' } }}
       >
         <div className="mb-2">
           <Title level={5} className="text-foreground m-0 flex items-center gap-2">
@@ -150,7 +157,7 @@ export default function StrategyIndicatorLegend({
                       <Text strong className="text-foreground text-sm">
                         {metadata.name}
                       </Text>
-                      <Tag size="small" color={metadata.color}>
+                      <Tag color={metadata.color}>
                         {strategyPositions.length}
                       </Tag>
                     </Space>
@@ -165,15 +172,18 @@ export default function StrategyIndicatorLegend({
 
                 {/* Indicators */}
                 <div className="flex flex-wrap gap-1">
-                  {metadata.indicators.map((indicator, index) => (
+                  {metadata.indicators.map((indicator: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined, index: React.Key | null | undefined) => (
                     <Tooltip key={index} title={`${indicator} indicator`}>
-                      <Tag 
-                        size="small" 
+                      <Tag
                         className="text-xs cursor-help"
-                        style={{ 
+                        style={{
                           borderColor: metadata.color,
                           color: metadata.color,
-                          backgroundColor: 'transparent'
+                          backgroundColor: 'transparent',
+                          fontSize: '12px',
+                          padding: '0 4px',
+                          height: '20px',
+                          lineHeight: '18px'
                         }}
                       >
                         {indicator}
@@ -183,7 +193,7 @@ export default function StrategyIndicatorLegend({
                 </div>
 
                 {/* Position Details */}
-                {strategyPositions.map((position, index) => (
+                {strategyPositions.map((position) => (
                   <div key={position.id} className="mt-2 p-2 bg-secondary-bg/50 rounded text-xs">
                     <Row justify="space-between">
                       <Col>

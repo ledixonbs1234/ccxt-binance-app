@@ -238,7 +238,7 @@ export default function StrategyBuilder({
         type: 'success',
         title: 'Template Loaded',
         message: `${template.name} template loaded successfully`,
-        category: 'backtesting',
+        category: 'trading',
         priority: 'medium',
         persistent: false,
       });
@@ -251,7 +251,7 @@ export default function StrategyBuilder({
         type: 'error',
         title: 'Validation Error',
         message: 'Strategy name is required',
-        category: 'backtesting',
+        category: 'trading',
         priority: 'high',
         persistent: true,
       });
@@ -263,7 +263,7 @@ export default function StrategyBuilder({
         type: 'error',
         title: 'Validation Error',
         message: 'At least one entry condition is required',
-        category: 'backtesting',
+        category: 'trading',
         priority: 'high',
         persistent: true,
       });
@@ -288,7 +288,7 @@ export default function StrategyBuilder({
       type: 'success',
       title: 'Strategy Saved',
       message: `Strategy "${strategy.name}" saved successfully`,
-      category: 'backtesting',
+      category: 'trading',
       priority: 'medium',
       persistent: false,
     });
@@ -303,7 +303,7 @@ export default function StrategyBuilder({
       type: 'info',
       title: 'Strategy Test Started',
       message: `Testing strategy "${strategy.name}"`,
-      category: 'backtesting',
+      category: 'trading',
       priority: 'medium',
       persistent: false,
     });

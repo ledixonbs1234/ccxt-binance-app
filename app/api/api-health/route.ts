@@ -100,7 +100,7 @@ async function resetCircuitBreakers(searchParams: URLSearchParams) {
   }
 
   try {
-    tradingApiService.resetCircuitBreaker(operation, symbol);
+    tradingApiService.resetCircuitBreaker(operation, symbol || undefined);
     
     return NextResponse.json({
       success: true,

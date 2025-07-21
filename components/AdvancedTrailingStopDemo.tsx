@@ -35,14 +35,14 @@ import {
   QuestionCircleOutlined,
   BookOutlined
 } from '@ant-design/icons';
-import { TrailingStopStrategy } from '../types/trailingStop';
+import { TrailingStopStrategy, TrailingStopSettings, TrailingStopPosition, TrailingStopAlert } from '../types/trailingStop';
 import { EnhancedTrailingStopService } from '../lib/enhancedTrailingStopService';
 import { useTrading, CoinSymbol } from '../contexts/TradingContext';
 import { useTranslations } from '../contexts/LanguageContext';
 import StrategySelector from './StrategySelector';
 import QuickGuideModal from './QuickGuideModal';
 import { generateUniqueId } from '../lib/utils';
-import StrategyConfigPanel from './StrategyConfigPanel';
+import StrategyConfigPanel, { StrategyConfig } from './StrategyConfigPanel';
 import EnhancedDemoCandlestickChart from './EnhancedDemoCandlestickChart';
 import EnhancedTrailingStopPanel from './EnhancedTrailingStopPanel';
 
@@ -60,34 +60,7 @@ interface StrategyPerformance {
   };
 }
 
-interface TrailingStopPosition {
-  id: string;
-  symbol: string;
-  side: 'buy' | 'sell';
-  quantity: number;
-  entryPrice: number;
-  currentPrice: number;
-  stopLossPrice: number;
-  trailingPercent: number;
-  strategy: TrailingStopStrategy;
-  status: 'pending' | 'active' | 'triggered' | 'cancelled';
-  unrealizedPnL: number;
-  unrealizedPnLPercent: number;
-  maxDrawdown: number;
-  maxProfit: number;
-  createdAt: number;
-  activatedAt?: number;
-  triggeredAt?: number;
-}
 
-interface TrailingStopAlert {
-  id: string;
-  type: 'activation' | 'adjustment' | 'trigger' | 'error';
-  message: string;
-  position: TrailingStopPosition;
-  timestamp: number;
-  severity: 'info' | 'success' | 'warning' | 'error';
-}
 
 interface TrailingStopPerformance {
   totalPositions: number;
@@ -100,25 +73,13 @@ interface TrailingStopPerformance {
   maxDrawdown: number;
 }
 
-interface TrailingStopSettings {
-  defaultStrategy: TrailingStopStrategy;
-  defaultTrailingPercent: number;
-  defaultMaxLoss: number;
-  atrPeriod: number;
-  atrMultiplier: number;
-  volatilityLookback: number;
-  volatilityMultiplier: number;
-  maxPositions: number;
-  maxRiskPerPosition: number;
-  updateInterval: number;
-  priceChangeThreshold: number;
-}
+
 
 export default function AdvancedTrailingStopDemo() {
   const { selectedCoin, coinsData } = useTrading();
   const t = useTranslations();
   const [selectedStrategy, setSelectedStrategy] = useState<TrailingStopStrategy>('percentage');
-  const [strategyConfig, setStrategyConfig] = useState<Record<string, any>>({});
+  const [strategyConfig, setStrategyConfig] = useState<StrategyConfig | null>(null);
   const [selectedSymbol, setSelectedSymbol] = useState('BTC/USDT');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [performanceData, setPerformanceData] = useState<StrategyPerformance[]>([]);
@@ -153,8 +114,48 @@ export default function AdvancedTrailingStopDemo() {
       volatilityMultiplier: 0.5,
       maxPositions: 10,
       maxRiskPerPosition: 2,
+      maxLossPercent: 5,
       updateInterval: 5000,
       priceChangeThreshold: 0.1,
+
+      // Advanced Strategy Settings
+      fibonacciSettings: {
+        levels: [0.236, 0.382, 0.5, 0.618, 0.786],
+        lookbackPeriod: 50,
+        defaultLevel: 0.618
+      },
+
+      bollingerSettings: {
+        period: 20,
+        stdDev: 2,
+        useUpperBand: true,
+        useLowerBand: true
+      },
+
+      volumeProfileSettings: {
+        period: 100,
+        valueAreaPercent: 70,
+        pocSensitivity: 0.1
+      },
+
+      smartMoneySettings: {
+        structureTimeframe: '1h',
+        liquidityLevels: 3,
+        orderBlockPeriod: 20
+      },
+
+      ichimokuSettings: {
+        tenkanSen: 9,
+        kijunSen: 26,
+        senkouSpanB: 52,
+        displacement: 26
+      },
+
+      pivotSettings: {
+        type: 'standard',
+        period: 'daily',
+        levels: 3
+      }
     };
 
     const trailingService = new EnhancedTrailingStopService(defaultSettings);
@@ -190,7 +191,7 @@ export default function AdvancedTrailingStopDemo() {
     const currentPrice = currentCoinData.price;
     const strategies: TrailingStopStrategy[] = ['percentage', 'atr', 'fibonacci', 'dynamic'];
 
-    return strategies.map((strategy, index) => ({
+    return strategies.map((strategy) => ({
       symbol: `${coin}/USDT`,
       side: Math.random() > 0.5 ? 'sell' : 'buy' as 'buy' | 'sell',
       quantity: coin === 'PEPE' ? 1000000 + Math.random() * 5000000 :
@@ -346,7 +347,7 @@ export default function AdvancedTrailingStopDemo() {
       console.error('Error creating new position:', error);
       const alert: TrailingStopAlert = {
         id: `alert_${generateUniqueId()}`,
-        type: 'error',
+        type: 'warning',
         message: `Failed to create position: ${error instanceof Error ? error.message : 'Unknown error'}`,
         position: {} as TrailingStopPosition,
         timestamp: Date.now(),
@@ -433,7 +434,7 @@ export default function AdvancedTrailingStopDemo() {
       console.error('Strategy analysis failed:', error);
       const alert: TrailingStopAlert = {
         id: `alert_${generateUniqueId()}`,
-        type: 'error',
+        type: 'warning',
         message: `Strategy analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         position: {} as TrailingStopPosition,
         timestamp: Date.now(),
@@ -473,7 +474,7 @@ export default function AdvancedTrailingStopDemo() {
         side: 'sell',
         quantity: 0.01,
         strategy: selectedStrategy,
-        strategyConfig: strategyConfig,
+        strategyConfig: strategyConfig || {},
         maxLossPercent: 5,
         accountBalance: 1000,
         riskPercent: 2
@@ -499,20 +500,6 @@ export default function AdvancedTrailingStopDemo() {
     }
   };
 
-  const getPerformanceColor = (value: number, type: 'winRate' | 'profit' | 'drawdown' | 'sharpe') => {
-    switch (type) {
-      case 'winRate':
-        return value >= 60 ? 'success' : value >= 40 ? 'warning' : 'error';
-      case 'profit':
-        return value >= 1 ? 'success' : value >= 0 ? 'warning' : 'error';
-      case 'drawdown':
-        return value <= 5 ? 'success' : value <= 15 ? 'warning' : 'error';
-      case 'sharpe':
-        return value >= 1 ? 'success' : value >= 0.5 ? 'warning' : 'error';
-      default:
-        return 'default';
-    }
-  };
 
   return (
     <>
@@ -654,9 +641,7 @@ export default function AdvancedTrailingStopDemo() {
 
               <StrategyConfigPanel
                 strategy={selectedStrategy}
-                config={strategyConfig}
                 onChange={setStrategyConfig}
-                size="small"
               />
 
               <Space style={{ marginTop: 16 }}>
@@ -740,8 +725,9 @@ export default function AdvancedTrailingStopDemo() {
         <Col span={24}>
           <EnhancedTrailingStopPanel
             positions={positions}
+            alerts={alerts}
+            performance={performance}
             onPositionUpdate={handlePositionUpdate}
-            isServiceRunning={isServiceRunning}
           />
         </Col>
       </Row>
@@ -751,8 +737,6 @@ export default function AdvancedTrailingStopDemo() {
         <Col span={24}>
           <Card title="Price Chart with Trailing Stops" size="small">
             <EnhancedDemoCandlestickChart
-              symbol={`${selectedCoin}/USDT`}
-              positions={positions}
               height={400}
             />
           </Card>

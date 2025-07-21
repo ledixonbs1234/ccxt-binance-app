@@ -203,14 +203,14 @@ export default function NotificationPanel({ className }: NotificationPanelProps)
                       <Text strong={!notification.read}>
                         {notification.title}
                       </Text>
-                      <Tag color={getTypeColor(notification.type)} size="small">
+                      <Tag color={getTypeColor(notification.type)}>
                         {notification.type.replace('_', ' ').toUpperCase()}
                       </Tag>
-                      <Tag color={getSeverityColor(notification.severity)} size="small">
+                      <Tag color={getSeverityColor(notification.severity)}>
                         {notification.severity.toUpperCase()}
                       </Tag>
                       {notification.persistent && (
-                        <Tag color="gold" size="small">PERSISTENT</Tag>
+                        <Tag color="gold">PERSISTENT</Tag>
                       )}
                     </Space>
                   }

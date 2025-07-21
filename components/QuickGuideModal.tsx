@@ -156,7 +156,7 @@ export default function QuickGuideModal({ visible, onClose }: QuickGuideModalPro
               <Col xs={12} sm={8} key={index}>
                 <Card size="small" style={{ textAlign: 'center' }}>
                   <Text strong>{strategy.name}</Text><br />
-                  <Tag color={strategy.color} size="small">{strategy.level}</Tag><br />
+                  <Tag color={strategy.color} >{strategy.level}</Tag><br />
                   <Text type="secondary" style={{ fontSize: 12 }}>
                     Risk: {strategy.risk}
                   </Text>

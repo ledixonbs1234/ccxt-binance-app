@@ -45,6 +45,42 @@ export default function StrategyChartDemo() {
       maxRiskPerPosition: 2,
       updateInterval: 5000,
       priceChangeThreshold: 0.1,
+
+      // Advanced Strategy Settings
+      fibonacciSettings: {
+        levels: [0.236, 0.382, 0.5, 0.618, 0.786],
+        lookbackPeriod: 50,
+        defaultLevel: 0.618
+      },
+      bollingerSettings: {
+        period: 20,
+        stdDev: 2,
+        useUpperBand: true,
+        useLowerBand: true
+      },
+      volumeProfileSettings: {
+        period: 100,
+        valueAreaPercent: 70,
+        pocSensitivity: 0.1
+      },
+      smartMoneySettings: {
+        structureTimeframe: '1h',
+        liquidityLevels: 3,
+        orderBlockPeriod: 20
+      },
+      ichimokuSettings: {
+        tenkanSen: 9,
+        kijunSen: 26,
+        senkouSpanB: 52,
+        displacement: 26
+      },
+      pivotSettings: {
+        type: 'standard',
+        period: 'daily',
+        levels: 3
+      },
+
+      maxLossPercent: 5.0
     });
     setService(trailingService);
   }, []);
@@ -156,7 +192,7 @@ export default function StrategyChartDemo() {
 
   // Get strategy display name
   const getStrategyDisplayName = (strategy: TrailingStopStrategy): string => {
-    const names = {
+    const names: Record<TrailingStopStrategy, string> = {
       percentage: 'Phần Trăm',
       atr: 'ATR (Average True Range)',
       fibonacci: 'Fibonacci Retracement',
@@ -166,7 +202,8 @@ export default function StrategyChartDemo() {
       ichimoku: 'Ichimoku Kinko Hyo',
       pivot_points: 'Pivot Points',
       support_resistance: 'Support/Resistance',
-      hybrid: 'Hybrid Strategy'
+      hybrid: 'Hybrid Strategy',
+      dynamic: 'Dynamic Strategy'
     };
     return names[strategy] || strategy;
   };

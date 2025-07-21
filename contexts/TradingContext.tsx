@@ -33,6 +33,9 @@ interface TradingContextType {
   error: string | null;
   timeframe: Timeframe;
   setTimeframe: (timeframe: Timeframe) => void;
+  btcData?: CoinData;
+  ethData?: CoinData;
+  pepeData?: CoinData;
 }
 
 const TradingContext = createContext<TradingContextType | undefined>(undefined);
@@ -120,10 +123,10 @@ export function TradingProvider({ children }: { children: ReactNode }) {
 
       setRawCoinsData(prevData => {
         const newCoinsData = { ...prevData };
-        results.forEach(({ coin, data }) => {
-          newCoinsData[coin] = {
+        results.forEach(({ coin, data }: { coin: CoinSymbol; data: any }) => {
+          newCoinsData[coin as CoinSymbol] = {
             symbol: coin,
-            pair: COIN_PAIRS[coin],
+            pair: COIN_PAIRS[coin as CoinSymbol],
             price: data.last || 0,
             change24h: data.percentage || 0,
             volume: data.quoteVolume || 0,
@@ -200,7 +203,10 @@ export function TradingProvider({ children }: { children: ReactNode }) {
         isLoading,
         error,
         timeframe,
-        setTimeframe
+        setTimeframe,
+        btcData: coinsData.BTC,
+        ethData: coinsData.ETH,
+        pepeData: coinsData.PEPE
       }}
     >
       {children}

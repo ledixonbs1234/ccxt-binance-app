@@ -58,8 +58,14 @@ export const stopFallbackMonitoring = (stateKey: string) => {
 // Process a single trailing stop (similar to BullMQ worker logic)
 const processFallbackJob = async (stateKey: string) => {
   try {
+    // Check if supabase is available
+    if (!supabase) {
+      console.warn(`[TrailingStopFallback] Database not available for ${stateKey}`);
+      return;
+    }
+
     // Get current state from database
-    const { data: currentState, error } = await supabase
+    const { data: currentState, error } = await supabase!
       .from('trailing_stops')
       .select('*')
       .eq('statekey', stateKey)
@@ -134,7 +140,7 @@ const processFallbackJob = async (stateKey: string) => {
     }
 
     // Update state in database (convert to lowercase column names)
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabase!
       .from('trailing_stops')
       .update({
         status: updatedState.status,
@@ -153,14 +159,16 @@ const processFallbackJob = async (stateKey: string) => {
     console.error(`[TrailingStopFallback] Error processing ${stateKey}:`, error);
     
     // Update error status in database
-    await supabase
-      .from('trailing_stops')
-      .update({
-        status: 'error',
+    if (supabase) {
+      await supabase!
+        .from('trailing_stops')
+        .update({
+          status: 'error',
         errormessage: error instanceof Error ? error.message : 'Unknown error',
         updated_at: new Date().toISOString()
       })
       .eq('statekey', stateKey);
+    }
 
     // Stop monitoring on error
     stopFallbackMonitoring(stateKey);
@@ -171,9 +179,14 @@ const processFallbackJob = async (stateKey: string) => {
 export const initializeFallbackSystem = async () => {
   try {
     console.log('[TrailingStopFallback] Initializing fallback monitoring system...');
-    
+
+    if (!supabase) {
+      console.warn('[TrailingStopFallback] Database not available for initialization');
+      return;
+    }
+
     // Get active trailing stops from database
-    const { data: activeStops, error } = await supabase
+    const { data: activeStops, error } = await supabase!
       .from('trailing_stops')
       .select('*')
       .in('status', ['pending_activation', 'active']);
@@ -211,7 +224,7 @@ export const getFallbackStats = () => {
 export const shutdownFallbackSystem = () => {
   console.log('[TrailingStopFallback] Shutting down fallback system...');
   
-  for (const [stateKey, job] of activeFallbackJobs) {
+  for (const [, job] of activeFallbackJobs) {
     clearInterval(job.intervalId);
   }
   

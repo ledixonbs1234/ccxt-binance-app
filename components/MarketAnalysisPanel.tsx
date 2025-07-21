@@ -57,7 +57,11 @@ export default function MarketAnalysisPanel({ symbol = 'BTC/USDT', className }: 
   const loadAnalysis = async () => {
     setLoading(true);
     try {
-      const candles = await tradingApiService.getCandleData(selectedSymbol, '1h', 100);
+      const rawCandles = await tradingApiService.getCandleData(selectedSymbol, '1h', 100);
+      const candles = rawCandles.map(candle => ({
+        ...candle,
+        date: new Date(candle.timestamp)
+      }));
       const analysis = await marketAnalysisService.analyzeMarket(selectedSymbol, candles);
       setAnalysisResult(analysis);
     } catch (error) {

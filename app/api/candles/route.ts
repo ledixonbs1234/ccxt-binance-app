@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ccxt from 'ccxt';
+import ccxt, { OHLCV } from 'ccxt';
 import { candleCache, CacheKeys } from '@/lib/cacheService';
 import { apiErrorHandler } from '@/lib/apiErrorHandler';
 
@@ -186,12 +186,12 @@ export async function GET(request: NextRequest) {
   }
 }
 
-function generateSyntheticCandles(symbol: string, timeframe: string, limit: number): number[][] {
+function generateSyntheticCandles(symbol: string, timeframe: string, limit: number): OHLCV[] {
   const basePrice = getFallbackPrice(symbol);
   const now = Date.now();
   const timeframeMs = getTimeframeMs(timeframe);
 
-  const candles: number[][] = [];
+  const candles: OHLCV[] = [];
   for (let i = limit - 1; i >= 0; i--) {
     const timestamp = now - (i * timeframeMs);
     const volatility = 0.02; // 2% volatility
@@ -203,7 +203,7 @@ function generateSyntheticCandles(symbol: string, timeframe: string, limit: numb
     const low = Math.min(open, close) * (1 - Math.random() * volatility * 0.5);
     const volume = 1000 + Math.random() * 9000;
 
-    candles.push([timestamp, open, high, low, close, volume]);
+    candles.push([timestamp, open, high, low, close, volume] as OHLCV);
   }
 
   return candles;

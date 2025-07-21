@@ -33,13 +33,22 @@ export const LazyChartWrapper = ({ ...props }) => (
   </Suspense>
 );
 
-export const LazyOrderHistoryWrapper = ({ ...props }) => (
+type OrderHistoryProps = {
+  currentPrice: number | null;
+  onBalanceUpdate: () => void;
+};
+
+export const LazyOrderHistoryWrapper = ({ ...props }: OrderHistoryProps) => (
   <Suspense fallback={<LazyLoadingSpinner message="Loading order history..." />}>
     <LazyOrderHistory {...props} />
   </Suspense>
 );
 
-export const LazyTrailingStopWrapper = ({ ...props }) => (
+type TrailingStopMonitorProps = {
+  onSimulationTriggered: () => void;
+};
+
+export const LazyTrailingStopWrapper = ({ ...props }: TrailingStopMonitorProps) => (
   <Suspense fallback={<LazyLoadingSpinner message="Loading trailing stops..." />}>
     <LazyTrailingStopMonitor {...props} />
   </Suspense>

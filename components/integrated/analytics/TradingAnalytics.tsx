@@ -286,7 +286,7 @@ export default function TradingAnalytics({ className = '' }: TradingAnalyticsPro
               title="Total PnL"
               value={tradingData.performance.totalPnL}
               precision={0}
-              prefix="$"
+              // prefix="$"
               valueStyle={{ color: '#3f8600' }}
               prefix={<RiseOutlined />}
             />

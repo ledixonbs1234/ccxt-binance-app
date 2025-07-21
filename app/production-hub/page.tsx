@@ -372,7 +372,7 @@ export default function ProductionHubPage() {
                   <Text type="secondary">Key Features:</Text>
                   <div style={{ marginTop: 4 }}>
                     {feature.features.map((feat, index) => (
-                      <Tag key={index} size="small" style={{ marginBottom: 4 }}>
+                      <Tag key={index}  style={{ marginBottom: 4 }}>
                         {feat}
                       </Tag>
                     ))}

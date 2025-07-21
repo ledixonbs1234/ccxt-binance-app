@@ -214,7 +214,7 @@ export default function StrategyComparisonTable({
 
   const rowSelection = {
     selectedRowKeys: selectedResults,
-    onChange: onSelectionChange,
+    onChange: (selectedRowKeys: React.Key[]) => onSelectionChange(selectedRowKeys as string[]),
     getCheckboxProps: (record: BacktestResult) => ({
       disabled: record.status !== 'completed'
     })

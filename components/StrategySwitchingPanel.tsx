@@ -24,8 +24,8 @@ import {
   DeleteOutlined, 
   InfoCircleOutlined,
   SwapOutlined,
-  TrendingUpOutlined,
-  TrendingDownOutlined
+  RiseOutlined,
+  FallOutlined
 } from '@ant-design/icons';
 import { StrategySwitchingService, StrategySwitchingRule, StrategySwitchingEvent } from '@/lib/strategySwitchingService';
 import { TrailingStopStrategy } from '@/types/trailingStop';
@@ -266,7 +266,7 @@ export default function StrategySwitchingPanel({ className }: StrategySwitchingP
         const pnl = record.performance.beforeSwitch;
         return (
           <Space>
-            {pnl >= 0 ? <TrendingUpOutlined style={{ color: '#52c41a' }} /> : <TrendingDownOutlined style={{ color: '#ff4d4f' }} />}
+            {pnl >= 0 ? <RiseOutlined style={{ color: '#52c41a' }} /> : <FallOutlined style={{ color: '#ff4d4f' }} />}
             <Text style={{ color: pnl >= 0 ? '#52c41a' : '#ff4d4f' }}>
               {pnl.toFixed(2)}%
             </Text>

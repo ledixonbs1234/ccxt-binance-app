@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import ccxt from 'ccxt';
+import ccxt, { Ticker } from 'ccxt';
 import { apiErrorHandler } from '@/lib/apiErrorHandler';
 
 // Rate limiting configuration
@@ -71,7 +71,7 @@ export async function GET(request: Request) {
     return ticker;
   };
 
-  const fallback = () => {
+  const fallback = (): Ticker => {
     console.warn(`[Ticker API] Using fallback data for ${symbol}`);
 
     // Try to get cached successful price
@@ -79,16 +79,28 @@ export async function GET(request: Request) {
     const basePrice = lastPrice || getFallbackPrice(symbol);
 
     return {
+      info: {},
       symbol,
-      last: basePrice,
-      bid: basePrice * 0.999,
-      ask: basePrice * 1.001,
+      timestamp: Date.now(),
+      datetime: new Date().toISOString(),
       high: basePrice * 1.05,
       low: basePrice * 0.95,
-      volume: 1000000,
-      quoteVolume: 1000000 * basePrice,
+      bid: basePrice * 0.999,
+      bidVolume: undefined,
+      ask: basePrice * 1.001,
+      askVolume: undefined,
+      vwap: undefined,
+      open: basePrice,
+      close: basePrice,
+      last: basePrice,
+      previousClose: undefined,
+      change: 0,
       percentage: 0,
-      timestamp: Date.now()
+      average: basePrice,
+      baseVolume: 1000000,
+      quoteVolume: 1000000 * basePrice,
+      indexPrice: undefined,
+      markPrice: undefined
     };
   };
 

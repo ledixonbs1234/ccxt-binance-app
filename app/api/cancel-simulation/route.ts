@@ -22,6 +22,11 @@ export async function POST(req: Request) {
             console.log(`[API /cancel-simulation] Simulation not found in memory: ${stateKey}`);
 
             // Check if the simulation exists in the database
+            if (!supabase) {
+                console.log(`[API /cancel-simulation] Database not available`);
+                return NextResponse.json({ message: `Simulation ${stateKey} not found or already removed.` }, { status: 404 });
+            }
+
             const { data, error } = await supabase
                 .from('trailing_stops')
                 .select('id')
@@ -34,10 +39,12 @@ export async function POST(req: Request) {
             }
 
             // Remove it from the database
-            await supabase
-                .from('trailing_stops')
-                .delete()
-                .eq('stateKey', stateKey);
+            if (supabase) {
+                await supabase
+                    .from('trailing_stops')
+                    .delete()
+                    .eq('stateKey', stateKey);
+            }
 
             console.log(`[API /cancel-simulation] Removed simulation from database: ${stateKey}`);
         }

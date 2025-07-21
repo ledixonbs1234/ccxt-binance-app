@@ -291,7 +291,11 @@ export default function AIBacktestDemoPage() {
                       step={1000}
                       style={{ width: '100%' }}
                       formatter={(value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                      parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
+                      parser={(value) => {
+                        const parsed = value?.replace(/\$\s?|(,*)/g, '') || '0';
+                        const num = parseInt(parsed, 10);
+                        return (num === 1000 || num === 100000) ? num : 1000;
+                      }}
                     />
                   </Form.Item>
                 </Col>

@@ -22,7 +22,7 @@ import {
   PlayCircleOutlined,
   PauseCircleOutlined,
   SwapOutlined,
-  TrendingUpOutlined,
+  RiseOutlined,
   SettingOutlined,
   BarChartOutlined
 } from '@ant-design/icons';
@@ -315,17 +315,16 @@ export default function MultipleStrategiesDemoPage() {
         <Col span={12}>
           <Card title="🎯 Strategy Selection">
             <StrategySelector
-              selectedStrategy={selectedStrategy}
-              onStrategyChange={setSelectedStrategy}
-              showDescription={true}
+              value={selectedStrategy}
+              onChange={setSelectedStrategy}
+              showDetails={true}
             />
             
             <Divider />
             
             <StrategyConfigPanel
               strategy={selectedStrategy}
-              config={strategyConfig}
-              onConfigChange={setStrategyConfig}
+              onChange={setStrategyConfig}
             />
           </Card>
         </Col>
