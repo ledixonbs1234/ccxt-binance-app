@@ -426,3 +426,93 @@ body {
 .ant-layout-sider::-webkit-scrollbar-thumb:hover {
   background: var(--muted);
 }
+
+/* Chart overlay controls styling for better visibility */
+.chart-overlay-controls {
+  /* Enhanced backdrop blur and contrast */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Light theme specific enhancements */
+[data-theme="light"] .chart-overlay-controls {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Dark theme specific enhancements */
+[data-theme="dark"] .chart-overlay-controls {
+  background: rgba(30, 41, 59, 0.95);
+  border: 1px solid rgba(51, 65, 85, 0.8);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+}
+
+/* Enhanced button contrast for chart controls */
+.chart-control-button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 60px;
+}
+
+/* Light theme button enhancements */
+[data-theme="light"] .chart-control-button:not(.active) {
+  background: rgba(255, 255, 255, 0.95);
+  color: #616161 !important;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  font-weight: 600 !important;
+}
+
+[data-theme="light"] .chart-control-button:not(.active):hover {
+  background: rgba(241, 245, 249, 0.95);
+  border-color: #3b82f6;
+  color: #3b82f6 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  font-weight: 600 !important;
+}
+
+/* Dark theme button enhancements */
+[data-theme="dark"] .chart-control-button:not(.active) {
+  background: rgba(30, 41, 59, 0.95);
+  color: #f1f5f9 !important;
+  border: 1px solid rgba(51, 65, 85, 0.8);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+  font-weight: 600 !important;
+}
+
+[data-theme="dark"] .chart-control-button:not(.active):hover {
+  background: rgba(51, 65, 85, 0.95);
+  border-color: #3b82f6;
+  color: #3b82f6 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  font-weight: 600 !important;
+}
+
+/* Active state styling for all themes */
+.chart-control-button.active {
+  color: #3b82f6 !important;
+  font-weight: 600 !important;
+}
+
+/* Ensure font rendering for chart controls */
+.chart-control-button {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  color: rgb(148, 163, 184) !important;
+}
+
+/* Force text visibility */
+.chart-control-button * {
+  color: inherit !important;
+  font-weight: inherit !important;
+}

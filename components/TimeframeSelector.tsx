@@ -127,17 +127,17 @@ export function InlineTimeframeSelector({
   const t = useTranslations();
 
   return (
-    <div 
-      className={`inline-flex items-center gap-1 bg-white/10 backdrop-blur-sm rounded-lg p-1 ${className || ''}`}
+    <div
+      className={`chart-overlay-controls inline-flex items-center gap-1 rounded-lg p-1 ${className || ''}`}
       style={style}
     >
-      <Text 
-        type="secondary" 
-        style={{ 
-          fontSize: '11px', 
-          color: 'rgba(255,255,255,0.7)',
+      <Text
+        type="secondary"
+        style={{
+          fontSize: '11px',
           marginRight: '4px'
         }}
+        className="text-muted"
       >
         {t.trading.timeframe}:
       </Text>
@@ -147,12 +147,12 @@ export function InlineTimeframeSelector({
           onClick={() => onChange(tf)}
           className={`px-2 py-1 text-xs font-medium rounded transition-all duration-200 hover:scale-105 active:scale-95 ${
             value === tf
-              ? 'bg-blue-500 text-white shadow-md'
-              : 'text-white/70 hover:bg-white/20 hover:text-white'
+              ? 'bg-accent text-black-20 shadow-md'
+              : 'text-blue-200 hover:bg-hover hover:text-foreground border border-transparent hover:border-accent/30'
           }`}
-          style={{ 
-            pointerEvents: 'auto', 
-            position: 'relative', 
+          style={{
+            pointerEvents: 'auto',
+            position: 'relative',
             zIndex: 1002,
             minWidth: '28px'
           }}
